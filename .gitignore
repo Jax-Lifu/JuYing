@@ -1,0 +1,13 @@
+.analysis/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+.vscode/
+build/
+coverage/
+*.iml
+*.log
+.DS_Store
+Thumbs.db
+test_out.txt

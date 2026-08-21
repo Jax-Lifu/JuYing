@@ -1,0 +1,30 @@
+{
+  "$schema": "./app.schema.json",
+  "version": 1,
+  "app": {
+    "defaultLocale": "zh-CN",
+    "fallbackLocale": "en",
+    "theme": "system",
+    "highContrast": false
+  },
+  "playback": {
+    "preferredQuality": "auto",
+    "allowCellular": true,
+    "autoplayNext": false,
+    "rememberProgress": true
+  },
+  "kids": {
+    "enabled": true,
+    "requireParentPinToExit": true,
+    "safeSearch": true,
+    "defaultDailyLimitMinutes": 60,
+    "ageBands": ["3-5", "6-8", "9-12"]
+  },
+  "privacy": {
+    "analytics": false,
+    "personalizedRecommendations": false,
+    "historyRetentionDays": 90
+  },
+  "sourcesFile": "./sources.example.json"
+}
+

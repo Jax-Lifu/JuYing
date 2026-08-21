@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://juying.local/schemas/app.schema.json",
+  "title": "JuYing application configuration",
+  "type": "object",
+  "required": ["version", "app", "playback", "kids", "privacy", "sourcesFile"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "app": {
+      "type": "object",
+      "required": ["defaultLocale", "fallbackLocale", "theme", "highContrast"],
+      "properties": {
+        "defaultLocale": { "type": "string" },
+        "fallbackLocale": { "type": "string" },
+        "theme": { "enum": ["system", "light", "dark"] },
+        "highContrast": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "playback": {
+      "type": "object",
+      "required": ["preferredQuality", "allowCellular", "autoplayNext", "rememberProgress"],
+      "properties": {
+        "preferredQuality": { "enum": ["auto", "sd", "hd", "fullHd", "uhd"] },
+        "allowCellular": { "type": "boolean" },
+        "autoplayNext": { "type": "boolean" },
+        "rememberProgress": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "kids": {
+      "type": "object",
+      "required": ["enabled", "requireParentPinToExit", "safeSearch", "defaultDailyLimitMinutes", "ageBands"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "requireParentPinToExit": { "type": "boolean" },
+        "safeSearch": { "type": "boolean" },
+        "defaultDailyLimitMinutes": { "type": "integer", "minimum": 1 },
+        "ageBands": {
+          "type": "array",
+          "items": { "enum": ["3-5", "6-8", "9-12", "teen"] },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["analytics", "personalizedRecommendations", "historyRetentionDays"],
+      "properties": {
+        "analytics": { "type": "boolean" },
+        "personalizedRecommendations": { "type": "boolean" },
+        "historyRetentionDays": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "sourcesFile": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+
