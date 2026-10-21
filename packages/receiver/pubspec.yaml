@@ -1,0 +1,14 @@
+name: juying_receiver
+description: "DLNA DMR renderer daemon, UPnP AV service responder, and GENA event publisher for JuYing (DMR-01~07)."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  meta: ^1.11.0
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0

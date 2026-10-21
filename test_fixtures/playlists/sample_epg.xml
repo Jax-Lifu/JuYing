@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="JuYing Test EPG Generator">
+  <channel id="CCTV1">
+    <display-name>CCTV-1 综合</display-name>
+  </channel>
+  <programme start="20261020080000 +0800" stop="20261020083000 +0800" channel="CCTV1">
+    <title lang="zh">朝闻天下</title>
+    <desc lang="zh">早间权威新闻播报</desc>
+  </programme>
+  <programme start="20261020190000 +0800" stop="20261020193000 +0800" channel="CCTV1">
+    <title lang="zh">新闻联播</title>
+    <desc lang="zh">全国重要新闻汇总</desc>
+  </programme>
+</tv>

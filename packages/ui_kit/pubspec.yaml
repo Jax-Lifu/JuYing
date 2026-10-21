@@ -1,0 +1,16 @@
+name: juying_ui_kit
+description: "TV D-Pad spatial focus navigation components, responsive layouts, and design tokens for JuYing."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

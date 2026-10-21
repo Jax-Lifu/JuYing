@@ -1,0 +1,34 @@
+name: JuYing CI / CD
+
+on:
+  push:
+    branches: [ main, refactor-v2 ]
+  pull_request:
+    branches: [ main, refactor-v2 ]
+
+jobs:
+  analyze_and_test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Formatting
+        run: dart format --output=none --set-exit-if-changed apps packages
+
+      - name: Analyze Application
+        run: |
+          cd apps/juying_app
+          flutter pub get
+          flutter analyze
+
+      - name: Run Monorepo Test Matrix
+        shell: pwsh
+        run: ./tools/run_all_tests.ps1

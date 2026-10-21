@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.14)
+project(juying_cctv_h5e LANGUAGES CXX)
+
+add_library(juying_cctv_h5e SHARED juying_cctv_h5e.cpp
+  ../../third_party/cctv_h5e/cctv_h5e_decrypt.cpp)
+target_compile_features(juying_cctv_h5e PRIVATE cxx_std_17)
+target_compile_definitions(juying_cctv_h5e PRIVATE JUYING_H5E_BUILD)
+target_include_directories(juying_cctv_h5e PRIVATE ../../third_party/cctv_h5e)
+set_target_properties(juying_cctv_h5e PROPERTIES CXX_VISIBILITY_PRESET hidden)
+if(MSVC)
+  target_compile_options(juying_cctv_h5e PRIVATE /EHsc /utf-8)
+endif()
+
+# Standalone native checks do not require Flutter or media assets in the repo.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  enable_testing()
+  add_executable(juying_cctv_h5e_test juying_cctv_h5e_test.cpp)
+  target_compile_features(juying_cctv_h5e_test PRIVATE cxx_std_17)
+  target_include_directories(juying_cctv_h5e_test PRIVATE ../../third_party/cctv_h5e)
+  target_link_libraries(juying_cctv_h5e_test PRIVATE juying_cctv_h5e)
+  if(MSVC)
+    target_compile_options(juying_cctv_h5e_test PRIVATE /EHsc /utf-8)
+  endif()
+  add_test(NAME juying_cctv_h5e_test COMMAND juying_cctv_h5e_test)
+endif()

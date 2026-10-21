@@ -1,0 +1,6 @@
+央视频道,#genre#
+CCTV-1 综合,http://127.0.0.1:9978/live/cctv1.m3u8
+CCTV-2 财经,http://127.0.0.1:9978/live/cctv2.m3u8
+卫视频道,#genre#
+湖南卫视,http://127.0.0.1:9978/live/hunantv.m3u8
+浙江卫视,http://127.0.0.1:9978/live/zhejiangtv.m3u8

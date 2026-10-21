@@ -1,0 +1,21 @@
+name: juying
+repository: https://github.com/flytech/juying
+
+packages:
+  - apps/**
+  - packages/**
+
+scripts:
+  analyze:
+    run: |
+      melos exec -c 1 -- "flutter analyze . || dart analyze ."
+    description: Run static analysis across all apps and packages.
+
+  test:
+    run: |
+      melos exec -c 1 --dir-exists="test" -- "flutter test || dart test"
+    description: Run unit tests across all packages.
+
+  format:
+    run: dart format apps packages
+    description: Format all Dart files across the workspace.

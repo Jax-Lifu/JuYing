@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="CCTV1" tvg-name="CCTV-1" tvg-logo="https://live.fanmingming.com/tv/CCTV1.png" group-title="央视频道",CCTV-1 综合
+http://127.0.0.1:9978/live/cctv1.m3u8
+#EXTINF:-1 tvg-id="CCTV2" tvg-name="CCTV-2" tvg-logo="https://live.fanmingming.com/tv/CCTV2.png" group-title="央视频道",CCTV-2 财经
+http://127.0.0.1:9978/live/cctv2.m3u8
+#EXTINF:-1 tvg-id="BTV1" tvg-name="北京卫视" tvg-logo="https://live.fanmingming.com/tv/BTV1.png" group-title="卫视频道",北京卫视
+http://127.0.0.1:9978/live/btv1.m3u8

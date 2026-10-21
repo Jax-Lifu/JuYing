@@ -1,0 +1,97 @@
+name: juying
+description: "聚映 (JuYing) - 现代化全平台视频播放与媒体聚合客户端"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Monorepo Core Domain Packages
+  juying_core:
+    path: ../../packages/core
+  juying_proxy_server:
+    path: ../../packages/proxy_server
+  juying_ui_kit:
+    path: ../../packages/ui_kit
+  juying_player_engine:
+    path: ../../packages/player_engine
+  juying_source_providers:
+    path: ../../packages/source_providers
+  juying_cast_sender:
+    path: ../../packages/cast_sender
+  juying_storage:
+    path: ../../packages/storage
+  juying_discovery:
+    path: ../../packages/discovery
+  juying_epg:
+    path: ../../packages/epg
+  juying_receiver:
+    path: ../../packages/receiver
+
+  # State Management & Reactive Architecture
+  flutter_riverpod: ^2.6.1
+
+  # Navigation & Routing
+  go_router: ^17.5.0
+
+  # Unified Video Playback Engine (libmpv backend)
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+  webview_windows: ^0.4.0
+  webview_flutter_android: ^4.14.0
+  window_manager: ^0.5.2
+
+  # Networking & HTTP Client
+  dio: ^5.8.0+1
+
+  # Local Loopback Range Proxy (:9978) & Remote Web Server
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+  # Secure Storage & Persistence
+  flutter_secure_storage: ^11.0.0
+  shared_preferences: ^2.5.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Encryption, Decryption & TVBox Config Parsers
+  crypto: ^3.0.6
+  encrypt: ^5.0.3
+  # Cross-platform TVBox JavaScript sandbox (QuickJS on Windows/Android/Linux).
+  flutter_js: ^0.8.7
+
+  # XML (EPG / Danmaku) & HTML / Text Utilities
+  xml: ^7.0.1
+  intl: ^0.20.2
+  uuid: ^4.5.1
+
+  # Icons & UI Elements
+  cupertino_icons: ^1.0.8
+  qr_flutter: ^4.1.0
+  dart_smb2: ^0.1.1
+  punycoder: ^0.3.0
+  webview_flutter: ^4.14.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/i18n/
+    - assets/web/

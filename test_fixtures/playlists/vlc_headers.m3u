@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="CCTV1" group-title="央视",CCTV-1 高清防盗链
+#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+#EXTVLCOPT:http-referrer=https://tv.cctv.com/
+http://127.0.0.1:9978/live/cctv1_hd.m3u8

@@ -1,0 +1,15 @@
+name: juying_net
+description: "Network client, DNS over HTTPS, proxy routing, certificate policy, and encoding detection for JuYing."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  dio: ^5.8.0+1
+  meta: ^1.11.0
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:GetPositionInfoResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+      <Track>1</Track>
+      <TrackDuration>01:45:20</TrackDuration>
+      <TrackMetaData>&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item id=&quot;0&quot; parentID=&quot;-1&quot; restricted=&quot;1&quot;&gt;&lt;dc:title xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;&gt;JuYing Sample Film&lt;/dc:title&gt;&lt;res protocolInfo=&quot;http-get:*:video/mp4:*&quot;&gt;http://192.168.1.100:9978/p/sample&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</TrackMetaData>
+      <TrackURI>http://192.168.1.100:9978/p/sample</TrackURI>
+      <RelTime>00:15:32</RelTime>
+      <AbsTime>00:15:32</AbsTime>
+      <RelCount>2147483647</RelCount>
+      <AbsCount>2147483647</AbsCount>
+    </u:GetPositionInfoResponse>
+  </s:Body>
+</s:Envelope>

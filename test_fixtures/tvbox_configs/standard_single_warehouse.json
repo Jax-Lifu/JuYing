@@ -1,0 +1,30 @@
+{
+  "spider": "https://example.com/custom_spider.jar",
+  "wallpaper": "https://picsum.photos/1920/1080",
+  "sites": [
+    {
+      "key": "csp_CmsSample",
+      "name": "极速资源 (CMS)",
+      "type": 1,
+      "api": "https://example.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    },
+    {
+      "key": "csp_QuickJsSample",
+      "name": "影视 (QuickJS)",
+      "type": 3,
+      "api": "csp_AppYsV2",
+      "ext": "https://example.com/rules/ys.json"
+    }
+  ],
+  "lives": [
+    {
+      "name": "内置直播",
+      "type": 0,
+      "url": "http://127.0.0.1:9978/live.m3u",
+      "playerType": 1
+    }
+  ]
+}

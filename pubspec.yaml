@@ -1,0 +1,10 @@
+name: juying_workspace
+description: "Monorepo workspace root for JuYing application and packages."
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+workspace:
+  - apps/juying_app
+  - packages/core
