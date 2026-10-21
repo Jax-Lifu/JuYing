@@ -634,67 +634,119 @@ class _HomePageState extends ConsumerState<HomePage> {
                             ),
                           );
                         }
-                        final site = selected.sites[index];
+                        // Sort sites: runtime supported sites first for immediate availability
+                        final sites = List<TvBoxSite>.from(selected.sites)
+                          ..sort((a, b) {
+                            if (a.isRuntimeSupported == b.isRuntimeSupported) {
+                              return 0;
+                            }
+                            return a.isRuntimeSupported ? -1 : 1;
+                          });
+                        final site = sites[index];
                         final isSelected = site.key == activeSite.key;
-                        return TvFocusWrapper(
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            _switchSite(site);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? colors.brandPrimary.withAlpha(50)
-                                  : colors.surfaceElevation,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isSelected
-                                    ? colors.brandPrimary
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Icon(
-                                  isSelected
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_off,
-                                  color: isSelected
-                                      ? colors.focusBorder
-                                      : site.isRuntimeSupported
-                                          ? colors.textTertiary
-                                          : colors.statusError,
+                        final isFirstSupported =
+                            index == 0 && site.isRuntimeSupported;
+                        final isFirstUnsupported = !site.isRuntimeSupported &&
+                            (index == 0 || sites[index - 1].isRuntimeSupported);
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            if (isFirstSupported) ...<Widget>[
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 4,
+                                  bottom: 6,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    site.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: colors.textPrimary,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  site.isRuntimeSupported
-                                      ? site.adapterLabel
-                                      : site.spiderRuntimeCapability.label,
+                                child: Text(
+                                  '🟢 可用站点 (${selected.supportedSiteCount})',
                                   style: TextStyle(
-                                    color: site.isRuntimeSupported
-                                        ? colors.brandAccent
-                                        : colors.statusError,
-                                    fontSize: 11,
+                                    color: colors.brandAccent,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ],
+                              ),
+                            ],
+                            if (isFirstUnsupported) ...<Widget>[
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 4,
+                                  top: 10,
+                                  bottom: 6,
+                                ),
+                                child: Text(
+                                  '⏳ 待适配 Android 原生站源 (${selected.sites.length - selected.supportedSiteCount})',
+                                  style: TextStyle(
+                                    color: colors.textTertiary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            TvFocusWrapper(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                _switchSite(site);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? colors.brandPrimary.withAlpha(50)
+                                      : colors.surfaceElevation,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? colors.brandPrimary
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: <Widget>[
+                                    Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked
+                                          : Icons.radio_button_off,
+                                      color: isSelected
+                                          ? colors.focusBorder
+                                          : site.isRuntimeSupported
+                                              ? colors.textTertiary
+                                              : colors.statusError,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        site.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.textPrimary,
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      site.isRuntimeSupported
+                                          ? site.adapterLabel
+                                          : site.spiderRuntimeCapability.label,
+                                      style: TextStyle(
+                                        color: site.isRuntimeSupported
+                                            ? colors.brandAccent
+                                            : colors.statusError,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         );
                       },
                     ),

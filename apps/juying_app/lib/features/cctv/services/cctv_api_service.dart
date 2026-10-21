@@ -602,16 +602,49 @@ class CctvApiService {
       });
       if (variants.isEmpty || !variants.first.supported) return null;
 
+      // Disambiguate duplicate resolutions (e.g. high-bitrate vs standard 720p)
+      final resolutionCounts = <int, int>{};
+      for (final v in variants) {
+        if (v.supported) {
+          resolutionCounts[v.height] = (resolutionCounts[v.height] ?? 0) + 1;
+        }
+      }
+
+      final resolvedVariants = <CctvStreamVariant>[];
+      final seenResolutionIndex = <int, int>{};
+
+      for (final v in variants) {
+        if (!v.supported) continue;
+        final count = resolutionCounts[v.height] ?? 1;
+        var label = v.stream.label;
+        if (count > 1) {
+          final index = (seenResolutionIndex[v.height] ?? 0) + 1;
+          seenResolutionIndex[v.height] = index;
+          if (index == 1) {
+            label = '$label (高码率)';
+          } else if (index == 2 && count == 2) {
+            label = '$label (标准)';
+          } else {
+            label = '$label ($index)';
+          }
+        }
+        resolvedVariants.add(CctvStreamVariant(
+          id: v.stream.id,
+          label: label,
+          resolution: v.stream.resolution,
+          bitrateKbps: v.stream.bitrateKbps,
+          url: v.stream.url,
+          isH5e: v.stream.isH5e,
+        ));
+      }
+
       final video = data?['video'];
       final seconds = double.tryParse(
             video is Map ? video['totalLength']?.toString() ?? '' : '',
           ) ??
           0;
       return CctvVodPlayback(
-        variants: variants
-            .where((variant) => variant.supported)
-            .map((variant) => variant.stream)
-            .toList(),
+        variants: resolvedVariants,
         duration: Duration(
           milliseconds:
               seconds.isFinite && seconds > 0 ? (seconds * 1000).round() : 0,
