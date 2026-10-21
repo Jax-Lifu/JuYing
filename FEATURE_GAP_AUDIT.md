@@ -127,3 +127,16 @@ README 中的功能声明不能单独作为完成证据；类名、注释和通�
 4. `dart format --output=none --set-exit-if-changed lib test`、`flutter analyze`、`flutter test` 全部通过。
 5. Windows 主力平台完成实际运行验证；平台相关能力还需对应目标平台构建或设备验证。
 
+## 6. 重构优化落地记录 (2026-10-21 ADR-012~016 闭环)
+
+| 领域模块 | 改造前问题 | 优化落地状态与证据 | 对应 ADR / 规范 |
+| :--- | :--- | :--- | :--- |
+| **TVBox / 爬虫** | 假 mock 列表、假 CCTV 回退、假 4K 仓 | **已彻底去模拟化**：清除假数据回退；落地纯 Dart 爬虫适配器 (`packages/source_providers/lib/tvbox/ports/`)；Android 原生 DEX 兜底增设安全免责弹窗并默认关闭；Windows 端严禁执行未知字节码；14 大测试套件 100% 通过。 | ADR-008, ADR-014 |
+| **本地代理与网关** | 单端口 0.0.0.0 越权暴露 | **物理端口严格隔离**：抽取至独立纯 Dart 包 `packages/proxy_server`；`127.0.0.1:9978` 仅供本地回环播放；`0.0.0.0:9979` 按需开放为局域网远程配置门户，强制 6 位 PIN 码配对与会话鉴权。 | ADR-015 |
+| **DLNA 投屏与接收** | DMC 与应用耦合、缺少 DMR 接收端 | **发送与接收端全解耦**：DMC 控制器抽取至 `packages/cast_sender`；DMR 接收端在 `packages/receiver` 中完整落地纯 Dart UPnP 守护进程，支持设备描述 XML、AVTransport、RenderingControl、DIDL 解析与 GENA 订阅。 | ADR-003, DMR-01~05 |
+| **播放内核与杜比** | 双引擎概念含糊，存在实现风险 | **分期交付与调度落槽**：首发统一采用 `media_kit` (libmpv) 为全平台通用基底；完成 `PoC-10` 杜比与音频直通评估报告；设置页预置双引擎开关与 3 秒解码看门狗降级。 | ADR-002, ADR-013, PoC-10 |
+| **多端 WebDAV 同步** | 单一文件覆写、明文保存凭据 | **分区与硬件安全加密**：按 `/JuYing/sync/v1/*.json.gz` 契约分文件同步；支持 ETag 并发检测、临时文件与原子 MOVE；WebDAV 凭据由 `SecureWebDavCredentialStore` 写入平台安全硬件密钥库。 | ADR-005, APP-12 |
+| **离线下载管理器** | 直接将未解密 TS 命名为 .mp4 | **真 AES-128 解密与完整性校验**：支持 Master Playlist 选流、AES-128 动态解密、IV 解析、CBC 解密与分片完整性校验，拒绝非法的未支持 HLS 布局。 | ADR-005, P2 |
+| **UI 与 TV 交互** | 颜色硬编码、缺少大屏遥控防抖 | **Apple 风格令牌收口**：落地 `packages/ui_kit`，提供 Cinema Dark 设计令牌；`TvFocusGlow` 支持 60ms 聚焦防抖与全局 D-Pad 导航；支持低性能设备毛玻璃实时降级为纯色半透明。 | ADR-010, ADR-016 |
+
+
