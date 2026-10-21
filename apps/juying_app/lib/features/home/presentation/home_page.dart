@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:juying/app/theme/app_theme.dart';
 import 'package:juying/app/theme/app_theme_colors.dart';
@@ -44,6 +45,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   int _currentPage = 1;
   int _loadGeneration = 0;
   String? _loadedSiteKey;
+  final Set<String> _attemptedFailoverKeys = <String>{};
 
   @override
   void initState() {
@@ -122,6 +124,12 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (mounted &&
           generation == _loadGeneration &&
           ref.read(activeTvBoxSiteProvider).key == activeSite.key) {
+        if (items.isEmpty && _shelfItems.isEmpty) {
+          final failoverHandled = await _attemptAutoFailover(activeSite);
+          if (failoverHandled) return;
+        }
+
+        _attemptedFailoverKeys.clear();
         setState(() {
           _shelfItems = items;
           _runtimeCategories = categories;
@@ -136,11 +144,83 @@ class _HomePageState extends ConsumerState<HomePage> {
           ref.read(activeTvBoxSiteProvider).key != activeSite.key) {
         return;
       }
+      final failoverHandled = await _attemptAutoFailover(activeSite);
+      if (failoverHandled) return;
+
       setState(() {
         _isLoading = false;
         _hasMore = false;
       });
     }
+  }
+
+  Future<bool> _attemptAutoFailover(TvBoxSite failingSite) async {
+    final prefs = await SharedPreferences.getInstance();
+    final autoFailover = prefs.getBool('pref_auto_failover') ?? true;
+    if (!autoFailover) return false;
+
+    final subscriptions = ref.read(tvBoxSubscriptionsProvider);
+    final nextSite = _findNextHealthySite(subscriptions, failingSite);
+    if (nextSite == null || nextSite.key == failingSite.key) return false;
+
+    debugPrint(
+      '[TVBox] 主源 [${failingSite.name}] 离线或无可用内容，智能切至 [${nextSite.name}]',
+    );
+
+    if (!mounted) return false;
+    _switchSite(nextSite);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '⚠️ [${failingSite.name}] 离线，已智能切至可用源 [${nextSite.name}]',
+        ),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: '查看全部源',
+          textColor: Colors.amber,
+          onPressed: () => _showSiteSelectorModal(subscriptions, nextSite),
+        ),
+      ),
+    );
+    return true;
+  }
+
+  TvBoxSite? _findNextHealthySite(
+    List<TvBoxSubscription> subscriptions,
+    TvBoxSite currentSite,
+  ) {
+    _attemptedFailoverKeys.add(currentSite.key);
+
+    // 1. 同订阅下优先查找其他可用且未在退避冷却期的站点
+    final currentSub = subscriptions
+        .where((s) => s.sites.any((site) => site.key == currentSite.key))
+        .firstOrNull;
+
+    if (currentSub != null) {
+      for (final site in currentSub.sites) {
+        if (site.key != currentSite.key &&
+            site.isRuntimeSupported &&
+            !_attemptedFailoverKeys.contains(site.key) &&
+            !_spiderEngine.isSourceCoolingDown(site)) {
+          return site;
+        }
+      }
+    }
+
+    // 2. 跨订阅探测（优先内置高可用源）
+    for (final sub in subscriptions) {
+      for (final site in sub.sites) {
+        if (site.key != currentSite.key &&
+            site.isRuntimeSupported &&
+            !_attemptedFailoverKeys.contains(site.key) &&
+            !_spiderEngine.isSourceCoolingDown(site)) {
+          return site;
+        }
+      }
+    }
+
+    return null;
   }
 
   Future<void> _loadMoreCategoryData() async {
@@ -199,6 +279,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
       return;
     }
+    _attemptedFailoverKeys.clear();
     ref.read(activeTvBoxSiteProvider.notifier).selectSite(site);
     _loadActiveSiteData(resetCategory: true);
   }
@@ -450,14 +531,27 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 vertical: 10,
                               ),
                             ),
-                            onPressed: () => _showSiteSelectorModal(
-                              subscriptions,
-                              activeSite,
-                            ),
-                            icon: const Icon(Icons.swap_horiz,
+                            onPressed: () {
+                              final next = _findNextHealthySite(
+                                subscriptions,
+                                activeSite,
+                              );
+                              if (next != null) {
+                                _switchSite(next);
+                              } else {
+                                _showSiteSelectorModal(
+                                  subscriptions,
+                                  activeSite,
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.bolt,
                                 color: Colors.white, size: 18),
-                            label: const Text('切换可用站源',
-                                style: TextStyle(color: Colors.white)),
+                            label: const Text('一键切换可用源',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                )),
                           ),
                           const SizedBox(width: 12),
                           OutlinedButton.icon(
@@ -469,7 +563,27 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 vertical: 10,
                               ),
                             ),
-                            onPressed: _loadActiveSiteData,
+                            onPressed: () => _showSiteSelectorModal(
+                              subscriptions,
+                              activeSite,
+                            ),
+                            icon: const Icon(Icons.swap_horiz, size: 18),
+                            label: const Text('选择其他站源'),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colors.textPrimary,
+                              side: BorderSide(color: colors.surfaceElevation),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 10,
+                              ),
+                            ),
+                            onPressed: () {
+                              _attemptedFailoverKeys.clear();
+                              _loadActiveSiteData();
+                            },
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text('重试刷新'),
                           ),
@@ -517,7 +631,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     TvBoxSite activeSite,
   ) {
     final colors = context.colors;
-    TvBoxSubscription? selectedSubscription;
+    TvBoxSubscription? selectedSubscription = subscriptions
+        .where((s) => s.sites.any((site) => site.key == activeSite.key))
+        .firstOrNull;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -644,6 +760,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                           });
                         final site = sites[index];
                         final isSelected = site.key == activeSite.key;
+                        final isCooling =
+                            _spiderEngine.isSourceCoolingDown(site);
                         final isFirstSupported =
                             index == 0 && site.isRuntimeSupported;
                         final isFirstUnsupported = !site.isRuntimeSupported &&
@@ -731,13 +849,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       ),
                                     ),
                                     Text(
-                                      site.isRuntimeSupported
-                                          ? site.adapterLabel
-                                          : site.spiderRuntimeCapability.label,
+                                      isCooling
+                                          ? '⚠️ 暂不可用 (离线)'
+                                          : (site.isRuntimeSupported
+                                              ? site.adapterLabel
+                                              : site.spiderRuntimeCapability
+                                                  .label),
                                       style: TextStyle(
-                                        color: site.isRuntimeSupported
-                                            ? colors.brandAccent
-                                            : colors.statusError,
+                                        color: isCooling
+                                            ? colors.statusWarning
+                                            : (site.isRuntimeSupported
+                                                ? colors.brandAccent
+                                                : colors.statusError),
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                       ),

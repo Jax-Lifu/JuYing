@@ -1164,6 +1164,9 @@ class TvBoxSpiderEngine {
     return cleaned.isEmpty ? null : cleaned;
   }
 
+  /// 检查站点当前是否处于故障熔断退避冷却期。
+  bool isSourceCoolingDown(TvBoxSite site) => _isSourceCoolingDown(site);
+
   bool _isSourceCoolingDown(TvBoxSite site) {
     final retryAt = _sourceCooldowns[site.key];
     if (retryAt == null) return false;
