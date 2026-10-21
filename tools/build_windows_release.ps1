@@ -30,6 +30,11 @@ if (-not (Test-Path $DistDir)) {
 # 2. Run Flutter Windows Release build if requested
 if (-not $SkipBuild) {
     Write-Host "[1/4] Running Flutter Windows Release build..." -ForegroundColor Yellow
+    # Pre-configure plugin junctions for non-elevated Developer Mode environments
+    $JunctionScript = Join-Path $RepoRoot "tools\setup_plugin_junctions.ps1"
+    if (Test-Path $JunctionScript) {
+        & powershell -File $JunctionScript
+    }
     Push-Location $AppDir
     try {
         flutter build windows --release

@@ -63,7 +63,7 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 add_subdirectory("runner")
 
 # The H5E adapter is built locally and ships beside the application for Dart FFI.
-add_subdirectory("../native/cctv_h5e" "cctv_h5e")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../native/cctv_h5e" "cctv_h5e")
 
 
 # Generated plugin build rules, which manage building the plugins and adding
@@ -90,9 +90,9 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
 
 install(TARGETS juying_cctv_h5e RUNTIME DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/cctv_h5e/LICENSE"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/cctv_h5e/COPYING"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/cctv_h5e/README.md"
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/cctv_h5e/LICENSE"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/cctv_h5e/COPYING"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/cctv_h5e/README.md"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}/licenses/cctv_h5e"
   COMPONENT Runtime)
 
