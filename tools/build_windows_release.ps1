@@ -48,13 +48,14 @@ if (-not $SkipBuild) {
     Write-Host "[1/4] Skipping compilation, packaging existing binaries..." -ForegroundColor DarkYellow
 }
 
+$AppBuildReleaseDir = Join-Path $AppDir "build\windows\x64\runner\Release"
+if (Test-Path $AppBuildReleaseDir) {
+    $BuildReleaseDir = $AppBuildReleaseDir
+} else {
+    $BuildReleaseDir = Join-Path $RepoRoot "build\windows\x64\runner\Release"
+}
 if (-not (Test-Path $BuildReleaseDir)) {
-    $AppBuildReleaseDir = Join-Path $AppDir "build\windows\x64\runner\Release"
-    if (Test-Path $AppBuildReleaseDir) {
-        $BuildReleaseDir = $AppBuildReleaseDir
-    } else {
-        throw "Build output directory not found at $BuildReleaseDir or $AppBuildReleaseDir"
-    }
+    throw "Build output directory not found at $AppBuildReleaseDir or $BuildReleaseDir"
 }
 
 # 3. Assemble Portable Zip
