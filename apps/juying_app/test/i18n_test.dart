@@ -6,7 +6,10 @@ import 'package:juying/core/i18n/app_strings.dart';
 void main() {
   setUpAll(() {
     // Load local JSON asset files directly into I18nService cache for unit testing
-    final dir = Directory('assets/i18n');
+    var dir = Directory('assets/i18n');
+    if (!dir.existsSync()) {
+      dir = Directory('apps/juying_app/assets/i18n');
+    }
     if (dir.existsSync()) {
       for (final file in dir.listSync().whereType<File>()) {
         final code = file.uri.pathSegments.last.replaceAll('.json', '');

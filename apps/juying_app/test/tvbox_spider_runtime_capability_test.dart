@@ -98,4 +98,31 @@ void main() {
     expect(capability.kind, TvBoxSpiderRuntimeKind.dartNative);
     expect(capability.runtimeAvailable, isTrue);
   });
+
+  test('recognizes pure Dart ported spiders without DEX (ADR-008)', () {
+    const czSite = TvBoxSite(
+      key: 'cz',
+      name: '厂长资源',
+      type: 3,
+      api: 'csp_Czsapp',
+      jar: 'https://example.test/spider.jar',
+    );
+    const aueteSite = TvBoxSite(
+      key: 'auete',
+      name: '奥特影视',
+      type: 3,
+      api: 'csp_Auete',
+      jar: 'https://example.test/spider.jar',
+    );
+
+    expect(czSite.isRuntimeSupported, isTrue);
+    expect(
+        czSite.spiderRuntimeCapability.kind, TvBoxSpiderRuntimeKind.dartNative);
+    expect(czSite.adapterLabel, 'Dart 移植');
+
+    expect(aueteSite.isRuntimeSupported, isTrue);
+    expect(aueteSite.spiderRuntimeCapability.kind,
+        TvBoxSpiderRuntimeKind.dartNative);
+    expect(aueteSite.adapterLabel, 'Dart 移植');
+  });
 }

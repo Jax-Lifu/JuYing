@@ -4,6 +4,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:juying_source_providers/juying_source_providers.dart';
 
 /// TVBox type=3 站点背后的实际执行技术栈。
 ///
@@ -134,6 +135,17 @@ class TvBoxSpiderRuntimeCapability {
         runtimeAvailable: true,
         reason: '兔小贝 DRPY 规则已移植为官方分类、搜索及原生播放地址的 Dart 实现。',
         requiredBridges: <String>['Tuxiaobei official HTTP API'],
+      );
+    }
+
+    if (PortedSpiderRegistry.instance.has(normalizedApi)) {
+      final portedRule = PortedSpiderRegistry.instance.find(normalizedApi);
+      final displayName = portedRule?.displayName ?? normalizedApi;
+      return TvBoxSpiderRuntimeCapability(
+        kind: TvBoxSpiderRuntimeKind.dartNative,
+        runtimeAvailable: true,
+        reason: '已由纯 Dart 移植适配器执行 ($displayName)。',
+        requiredBridges: const <String>['HTTP(S)', 'Dart Ported Spider'],
       );
     }
 

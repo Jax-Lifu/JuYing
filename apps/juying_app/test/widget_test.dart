@@ -11,7 +11,10 @@ import 'package:juying/main.dart';
 void main() {
   setUpAll(() async {
     // Seed i18n translations from local JSON file for widget test environment
-    final file = File('assets/i18n/zh_CN.json');
+    var file = File('assets/i18n/zh_CN.json');
+    if (!await file.exists()) {
+      file = File('apps/juying_app/assets/i18n/zh_CN.json');
+    }
     if (await file.exists()) {
       final content = await file.readAsString();
       final map = json.decode(content) as Map<String, dynamic>;

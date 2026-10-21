@@ -91,35 +91,56 @@ class RuleBasedPortedSpider implements PortedSpiderProvider {
     String pg, {
     Map<String, dynamic>? filter,
   }) async {
+    if (rule.categoryPathTemplate.isEmpty) {
+      return <String, dynamic>{
+        'page': int.tryParse(pg) ?? 1,
+        'pagecount': 1,
+        'limit': 0,
+        'total': 0,
+        'list': <Map<String, dynamic>>[],
+      };
+    }
     final path = rule.categoryPathTemplate
         .replaceAll('{tid}', Uri.encodeComponent(tid))
         .replaceAll('{pg}', Uri.encodeComponent(pg));
     final url = '${rule.host}$path';
-    final raw = await _httpClient(url, headers: rule.defaultHeaders);
-    final items = _extractVodList(raw);
-
-    return <String, dynamic>{
-      'page': int.tryParse(pg) ?? 1,
-      'pagecount': 999,
-      'limit': items.length,
-      'total': 9999,
-      'list': items,
-    };
+    try {
+      final raw = await _httpClient(url, headers: rule.defaultHeaders);
+      final items = _extractVodList(raw);
+      return <String, dynamic>{
+        'page': int.tryParse(pg) ?? 1,
+        'pagecount': 999,
+        'limit': items.length,
+        'total': 9999,
+        'list': items,
+      };
+    } catch (_) {
+      return <String, dynamic>{
+        'page': int.tryParse(pg) ?? 1,
+        'pagecount': 1,
+        'limit': 0,
+        'total': 0,
+        'list': <Map<String, dynamic>>[],
+      };
+    }
   }
 
   @override
   Future<Map<String, dynamic>> detailContent(List<String> ids) async {
-    final path = rule.detailPathTemplate.replaceAll(
-      '{ids}',
-      Uri.encodeComponent(ids.join(',')),
-    );
-    final url = '${rule.host}$path';
-    final raw = await _httpClient(url, headers: rule.defaultHeaders);
-    final items = _extractVodList(raw);
-
-    return <String, dynamic>{
-      'list': items,
-    };
+    if (ids.isEmpty || rule.detailPathTemplate.isEmpty) {
+      return const <String, dynamic>{'list': <Map<String, dynamic>>[]};
+    }
+    final idParam = ids.join(',');
+    final url = idParam.startsWith('http')
+        ? idParam
+        : '${rule.host}${rule.detailPathTemplate.replaceAll('{ids}', Uri.encodeComponent(idParam))}';
+    try {
+      final raw = await _httpClient(url, headers: rule.defaultHeaders);
+      final items = _extractVodList(raw);
+      return <String, dynamic>{'list': items};
+    } catch (_) {
+      return const <String, dynamic>{'list': <Map<String, dynamic>>[]};
+    }
   }
 
   @override
@@ -127,17 +148,21 @@ class RuleBasedPortedSpider implements PortedSpiderProvider {
     String key, {
     bool quick = false,
   }) async {
+    if (key.trim().isEmpty || rule.searchPathTemplate.isEmpty) {
+      return const <String, dynamic>{'list': <Map<String, dynamic>>[]};
+    }
     final path = rule.searchPathTemplate.replaceAll(
       '{key}',
       Uri.encodeComponent(key),
     );
     final url = '${rule.host}$path';
-    final raw = await _httpClient(url, headers: rule.defaultHeaders);
-    final items = _extractVodList(raw);
-
-    return <String, dynamic>{
-      'list': items,
-    };
+    try {
+      final raw = await _httpClient(url, headers: rule.defaultHeaders);
+      final items = _extractVodList(raw);
+      return <String, dynamic>{'list': items};
+    } catch (_) {
+      return const <String, dynamic>{'list': <Map<String, dynamic>>[]};
+    }
   }
 
   @override

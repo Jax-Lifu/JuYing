@@ -102,5 +102,40 @@ void main() {
       expect(res['url'], equals('https://video.example.com/play.mp4'));
       expect(res['header']['User-Agent'], equals('JuYing-Player/1.0'));
     });
+
+    test('PortedSpiderRegistry contains built-in ported spiders', () {
+      final registry = PortedSpiderRegistry.instance;
+
+      expect(registry.has('csp_Czsapp'), isTrue);
+      expect(registry.has('csp_czsapp'), isTrue); // case-insensitive
+      expect(registry.has('csp_Auete'), isTrue);
+      expect(registry.has('csp_Duanju'), isTrue);
+      expect(registry.has('csp_SixV'), isTrue);
+      expect(registry.has('csp_Jianpian'), isTrue);
+      expect(registry.has('csp_Libvio'), isTrue);
+      expect(registry.has('csp_MLYS'), isTrue);
+      expect(registry.has('csp_Yj1211'), isTrue);
+      expect(registry.has('csp_FirstAid'), isTrue);
+      expect(registry.has('csp_BtTwo'), isTrue);
+      expect(registry.has('csp_Jpys'), isTrue);
+      expect(registry.has('csp_Muou'), isTrue);
+      expect(registry.has('csp_DanDan'), isTrue);
+      expect(registry.has('csp_Wogg'), isTrue);
+      expect(registry.has('csp_Douban'), isTrue);
+      expect(registry.has('csp_Huya'), isTrue);
+      expect(registry.has('csp_Douyu'), isTrue);
+
+      final czRule = registry.find('csp_czsapp');
+      expect(czRule, isNotNull);
+      expect(czRule!.displayName, contains('厂长资源'));
+
+      final spider = registry.create(
+        'csp_Czsapp',
+        httpClient: (url, {headers}) async => '{"list": []}',
+        overrideHost: 'https://czzy.backup.com',
+      );
+      expect(spider, isNotNull);
+      expect(spider!.displayName, contains('厂长资源'));
+    });
   });
 }

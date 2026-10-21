@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:juying_core/juying_core.dart';
-import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
 /// Position and duration feedback from a remote DLNA playback device.

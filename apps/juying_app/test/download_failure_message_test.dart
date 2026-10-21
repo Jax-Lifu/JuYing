@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,21 @@ import 'package:juying/features/download/presentation/download_page.dart';
 import 'package:juying/features/download/services/offline_download_manager.dart';
 
 void main() {
+  setUpAll(() async {
+    var file = File('assets/i18n/en_US.json');
+    if (!await file.exists()) {
+      file = File('apps/juying_app/assets/i18n/en_US.json');
+    }
+    if (await file.exists()) {
+      final content = await file.readAsString();
+      final map = json.decode(content) as Map<String, dynamic>;
+      I18nService.instance.setTranslations(
+        'en_US',
+        map.map((k, v) => MapEntry(k, v.toString())),
+      );
+    }
+  });
+
   testWidgets(
       'download page explains unsupported offline layouts in the locale',
       (tester) async {
@@ -23,7 +39,6 @@ void main() {
       );
       manager.pauseTask(task.id);
       await manager.waitForTask(task.id);
-      await I18nService.instance.loadLanguage('en_US');
     });
     addTearDown(() => manager.deleteTask(task.id));
     task.status = DownloadTaskStatus.failed;

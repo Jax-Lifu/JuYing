@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
 import '../juying_receiver.dart';
@@ -148,7 +147,6 @@ class DlnaRendererServer implements IDlnaRendererDaemon, ReceiverService {
   }
 
   void _serveDeviceDescription(HttpRequest request) {
-    final host = request.headers.host ?? '127.0.0.1:$_port';
     final xml = '''<?xml version="1.0" encoding="utf-8"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">
   <specVersion>

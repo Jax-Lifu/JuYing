@@ -1,6 +1,8 @@
 // TVBox parsing factories stay beside their wire-format serializers for auditability.
 // ignore_for_file: sort_constructors_first
 
+import 'package:juying_source_providers/juying_source_providers.dart';
+
 import 'package:juying/features/tvbox/services/tvbox_spider_runtime_capability.dart';
 
 /// Domain model representing a TVBox Site Source adapter.
@@ -92,6 +94,9 @@ class TvBoxSite {
     if (lowerApi.startsWith('py_cctv')) return 'Dart 兼容';
     if (TvBoxSpiderRuntimeCapability.supportsXbpq(api: api, ext: ext)) {
       return 'Dart XBPQ';
+    }
+    if (PortedSpiderRegistry.instance.has(api)) {
+      return 'Dart 移植';
     }
     if (capability.kind == TvBoxSpiderRuntimeKind.catVodJar) {
       return capability.label;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../juying_ui_kit.dart';
+import 'package:juying_ui_kit/juying_ui_kit.dart';
 
 /// Provides Apple TV-inspired focus visuals and D-Pad key handling (ADR-010 & ADR-016).
 ///

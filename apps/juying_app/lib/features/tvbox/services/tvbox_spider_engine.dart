@@ -13,6 +13,7 @@ import 'package:juying/features/tvbox/services/app_ys_v2_dart_spider_adapter.dar
 import 'package:juying/features/tvbox/services/bilibili_spider_adapter.dart';
 import 'package:juying/features/tvbox/services/cctv_vod_adapter.dart';
 import 'package:juying/features/tvbox/services/live_to_vod_spider_adapter.dart';
+import 'package:juying/features/tvbox/services/ported_spider_adapter.dart';
 import 'package:juying/features/tvbox/services/python_compat_spider_adapter.dart';
 import 'package:juying/features/tvbox/services/spider_playback_response.dart';
 import 'package:juying/features/tvbox/services/t4_http_spider_adapter.dart';
@@ -212,6 +213,20 @@ class TvBoxSpiderEngine {
         return const <MediaItem>[];
       }
     }
+    if (PortedSpiderAdapter.supports(site)) {
+      try {
+        final list = await PortedSpiderAdapter(_dio).fetchCategory(
+          site,
+          categoryId,
+          page: page,
+        );
+        if (list.isNotEmpty) _recordSourceSuccess(site);
+        return list;
+      } catch (error) {
+        _recordSourceFailure(site, 'Dart Ported 目录', error);
+        return const <MediaItem>[];
+      }
+    }
     if (_dexAdapter.supports(site) && !BilibiliSpiderAdapter.supports(site)) {
       try {
         return await _dexAdapter.fetchCategory(
@@ -349,6 +364,17 @@ class TvBoxSpiderEngine {
         return site.categories;
       }
     }
+    if (PortedSpiderAdapter.supports(site)) {
+      try {
+        final categories =
+            await PortedSpiderAdapter(_dio).fetchCategories(site);
+        if (categories.isNotEmpty) return categories;
+        if (site.categories.isNotEmpty) return site.categories;
+      } catch (error) {
+        _recordSourceFailure(site, 'Dart Ported 分类', error);
+        return site.categories;
+      }
+    }
     if (_dexAdapter.supports(site) && !BilibiliSpiderAdapter.supports(site)) {
       try {
         return await _dexAdapter.fetchCategories(site);
@@ -432,6 +458,15 @@ class TvBoxSpiderEngine {
         return await AppYsV2DartSpiderAdapter(_dio).search(site, keyword);
       } catch (error) {
         _recordSourceFailure(site, 'Dart AppYsV2 搜索', error);
+        return const <MediaItem>[];
+      }
+    }
+    if (PortedSpiderAdapter.supports(site)) {
+      if (!site.searchable) return const <MediaItem>[];
+      try {
+        return await PortedSpiderAdapter(_dio).search(site, keyword);
+      } catch (error) {
+        _recordSourceFailure(site, 'Dart Ported 搜索', error);
         return const <MediaItem>[];
       }
     }
@@ -774,6 +809,14 @@ class TvBoxSpiderEngine {
         return await AppYsV2DartSpiderAdapter(_dio).fetchCandidates(site, item);
       } catch (error) {
         _recordSourceFailure(site, 'Dart AppYsV2 详情', error);
+        return const <PlaybackCandidate>[];
+      }
+    }
+    if (PortedSpiderAdapter.supports(site)) {
+      try {
+        return await PortedSpiderAdapter(_dio).fetchCandidates(site, item);
+      } catch (error) {
+        _recordSourceFailure(site, 'Dart Ported 详情', error);
         return const <PlaybackCandidate>[];
       }
     }

@@ -7,6 +7,7 @@
 /// reliability across Windows, Android TV, and mobile.
 library;
 
+export 'ported_spider_registry.dart';
 export 'rule_based_ported_spider.dart';
 
 /// Contract for a TVBox Spider ported from Java/DEX to pure Dart.
