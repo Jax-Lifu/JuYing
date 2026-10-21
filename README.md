@@ -110,7 +110,7 @@ juying/
 
 ---
 
-## 🏛️ 11 大核心架构决策记录 (ADR 概览)
+## 🏛️ 16 大核心架构决策记录 (ADR 概览)
 
 详细决策分析与 Trade-off 评估请参阅 **[docs/adr/](docs/adr/)**：
 - **[ADR-001](docs/adr/ADR-001-flutter-framework.md)**：选择 Flutter 而非 Tauri 2（确保原生硬件解码管线与 TV D-Pad 焦点原生控制）。
@@ -124,6 +124,11 @@ juying/
 - **[ADR-009](docs/adr/ADR-009-gpl3-license.md)**：全工程采用 GNU General Public License v3.0 (GPL-3.0) 开源协议。
 - **[ADR-010](docs/adr/ADR-010-apple-style-cupertino-design.md)**：采用 Apple 风格视觉规范，以 Cupertino 为基底集中收口设计令牌，提供低性能降级模式。
 - **[ADR-011](docs/adr/ADR-011-unified-codebase-mobile-tv.md)**：手机、平板与 Android TV 首发共用单一代码库与统一构建产物。
+- **[ADR-012](docs/adr/ADR-012-vertical-slice-monorepo-democking.md)**：垂直切片单体仓解耦与去模拟化交付原则（杜绝假数据，未移植功能明确降级）。
+- **[ADR-013](docs/adr/ADR-013-libmpv-universal-first-media3-phasing.md)**：播放引擎分期交付策略：libmpv 通用首发，Media3 杜比第二引擎分期引入。
+- **[ADR-014](docs/adr/ADR-014-tvbox-cross-platform-boundary-and-dex-policy.md)**：TVBox 跨平台边界与 Android DEX 运行策略（安全弹窗免责与沙箱隔离）。
+- **[ADR-015](docs/adr/ADR-015-dual-port-isolated-proxy-and-lan-gateway.md)**：双端口物理隔离代理与局域网配对网关（127.0.0.1:9978 与 0.0.0.0:9979 隔离）。
+- **[ADR-016](docs/adr/ADR-016-apple-ui-and-tv-focus-phased-rollout.md)**：Apple 视觉风格与 TV 焦点防抖分期落地规范。
 
 ---
 
