@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:juying_receiver/juying_receiver.dart';
 
 import 'package:juying/app/platform/platform_info.dart';
 import 'package:juying/app/theme/app_theme.dart';
@@ -27,6 +30,50 @@ class _ReceiverPageState extends ConsumerState<ReceiverPage> {
   bool _airplayMirroringEnabled = false;
   String _deviceName = '聚映家庭大屏';
   bool _requirePin = false;
+
+  DlnaRendererServer? _rendererServer;
+  StreamSubscription<IncomingCastPayload>? _castSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _startReceiverServer();
+  }
+
+  Future<void> _startReceiverServer() async {
+    if (!_receiverEnabled) return;
+    try {
+      _rendererServer = DlnaRendererServer(
+        friendlyName: _deviceName,
+        requirePin: _requirePin,
+      );
+      await _rendererServer!.start(port: 9980);
+      _castSubscription = _rendererServer!.onIncomingCast.listen((payload) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('收到投屏请求: ${payload.title ?? payload.mediaUri}'),
+            backgroundColor: context.colors.brandPrimary,
+          ),
+        );
+      });
+    } catch (e) {
+      debugPrint('[ReceiverPage] Failed to start DLNA receiver: $e');
+    }
+  }
+
+  Future<void> _stopReceiverServer() async {
+    await _castSubscription?.cancel();
+    _castSubscription = null;
+    await _rendererServer?.stop();
+    _rendererServer = null;
+  }
+
+  @override
+  void dispose() {
+    _stopReceiverServer();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +169,15 @@ class _ReceiverPageState extends ConsumerState<ReceiverPage> {
           Switch(
             value: _receiverEnabled,
             activeThumbColor: colors.brandPrimary,
-            onChanged: (val) {
+            onChanged: (val) async {
               setState(() {
                 _receiverEnabled = val;
               });
+              if (val) {
+                await _startReceiverServer();
+              } else {
+                await _stopReceiverServer();
+              }
             },
           ),
         ],
@@ -141,88 +193,91 @@ class _ReceiverPageState extends ConsumerState<ReceiverPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.focusBorder.withValues(alpha: 0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.airplay, color: colors.brandPrimary, size: 24),
-                  const SizedBox(width: 10),
-                  Text(
-                    'AirPlay 接收服务 (APL-01~05 / ADR-004)',
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.airplay, color: colors.brandPrimary, size: 24),
+                    const SizedBox(width: 10),
+                    Text(
+                      'AirPlay 接收服务 (APL-01~05 / ADR-004)',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.brandPrimary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'mDNS 广播中',
                     style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      color: colors.brandPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.brandPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(
-                  'mDNS 广播中',
-                  style: TextStyle(
-                    color: colors.brandPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              '基于 UxPlay 引擎广播 _airplay._tcp 与 _raop._tcp。音频接收默认开启，局域网内所有 Apple 设备均可发现。',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Divider(color: colors.focusBorder.withValues(alpha: 0.1)),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'AirPlay 无损音频接收 (ALAC / AAC)',
+                style: TextStyle(color: colors.textPrimary),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            '基于 UxPlay 引擎广播 _airplay._tcp 与 _raop._tcp。音频接收默认开启，局域网内所有 Apple 设备均可发现。',
-            style: TextStyle(color: colors.textSecondary, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          Divider(color: colors.focusBorder.withValues(alpha: 0.1)),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'AirPlay 无损音频接收 (ALAC / AAC)',
-              style: TextStyle(color: colors.textPrimary),
+              subtitle: Text(
+                '从 iPhone、iPad 或 Mac 隔空播放音乐到电视音响 (默认开启)',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              value: _airplayAudioEnabled,
+              activeThumbColor: colors.brandPrimary,
+              onChanged: (val) {
+                setState(() {
+                  _airplayAudioEnabled = val;
+                });
+              },
             ),
-            subtitle: Text(
-              '从 iPhone、iPad 或 Mac 隔空播放音乐到电视音响 (默认开启)',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'AirPlay 屏幕镜像 (H.264 / H.265)',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              subtitle: Text(
+                '大屏实时镜像投送，开销较高 (默认关闭，需用户手动开启)',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              value: _airplayMirroringEnabled,
+              activeThumbColor: colors.brandPrimary,
+              onChanged: (val) {
+                setState(() {
+                  _airplayMirroringEnabled = val;
+                });
+              },
             ),
-            value: _airplayAudioEnabled,
-            activeThumbColor: colors.brandPrimary,
-            onChanged: (val) {
-              setState(() {
-                _airplayAudioEnabled = val;
-              });
-            },
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'AirPlay 屏幕镜像 (H.264 / H.265)',
-              style: TextStyle(color: colors.textPrimary),
-            ),
-            subtitle: Text(
-              '大屏实时镜像投送，开销较高 (默认关闭，需用户手动开启)',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
-            ),
-            value: _airplayMirroringEnabled,
-            activeThumbColor: colors.brandPrimary,
-            onChanged: (val) {
-              setState(() {
-                _airplayMirroringEnabled = val;
-              });
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -235,56 +290,59 @@ class _ReceiverPageState extends ConsumerState<ReceiverPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.focusBorder.withValues(alpha: 0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '服务参数设置 (DMR-05)',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '对外显示名称',
-              style: TextStyle(color: colors.textPrimary),
-            ),
-            subtitle: Text(
-              _deviceName,
-              style: TextStyle(color: colors.textSecondary),
-            ),
-            trailing: TvFocusWrapper(
-              onTap: _editDeviceName,
-              child: OutlinedButton(
-                onPressed: _editDeviceName,
-                child: const Text('修改'),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              '服务参数设置 (DMR-05)',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          Divider(color: colors.focusBorder.withValues(alpha: 0.1)),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '开启配对 PIN 码保护',
-              style: TextStyle(color: colors.textPrimary),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '对外显示名称',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              subtitle: Text(
+                _deviceName,
+                style: TextStyle(color: colors.textSecondary),
+              ),
+              trailing: TvFocusWrapper(
+                onTap: _editDeviceName,
+                child: OutlinedButton(
+                  onPressed: _editDeviceName,
+                  child: const Text('修改'),
+                ),
+              ),
             ),
-            subtitle: Text(
-              '投屏前需在电视端确认或输入配对码，防止蹭投',
-              style: TextStyle(color: colors.textSecondary),
+            Divider(color: colors.focusBorder.withValues(alpha: 0.1)),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '开启配对 PIN 码保护',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              subtitle: Text(
+                '投屏前需在电视端确认或输入配对码，防止蹭投',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+              value: _requirePin,
+              activeThumbColor: colors.brandPrimary,
+              onChanged: (val) {
+                setState(() {
+                  _requirePin = val;
+                });
+              },
             ),
-            value: _requirePin,
-            activeThumbColor: colors.brandPrimary,
-            onChanged: (val) {
-              setState(() {
-                _requirePin = val;
-              });
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
