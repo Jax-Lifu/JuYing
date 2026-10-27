@@ -1,6 +1,8 @@
 # Aerial TV 对聚映的性能与包体借鉴
 
-日期：2026-10-27。范围：只读源码与官方发布元数据；未安装 Aerial、未进行本轮设备性能测试。聚映源码保持不变。
+日期：2026-10-27。本文保留当时的只读源码与官方发布元数据研究快照；该研究阶段未安装 Aerial、未测试设备性能、未修改聚映源码。
+
+后续落地：频道选中态 payload 与连续切台修复已完成，见[切台优化与验证记录](2026-10-27-channel-switch-optimization.md)。下文体积与性能数据仍属于各自标注的旧产物。
 
 ## 核对版本与包体
 
@@ -73,7 +75,7 @@
 建议按下列顺序推进：
 
 1. **先建立相同条件的 Release 基线。** 当前源码同一提交、同设备、同 ABI，记录首屏时间、遥控器连续导航 P95/P99、峰值/PSS、后台空闲帧、进入播放首帧。保留常规安装与 AOT 状态，不能拿 Debug 对经脚本编译的 Aerial Release。冷启动与稳定导航分开统计。
-2. **先消除焦点切换的冗余工作。** 直播 `ChannelAdapter.select` 对旧/新条目做完整 `notifyItemChanged`，完整绑定又调用 logo 图片加载；可优先用选中态 payload 只更新 `isSelected`，验证快速方向键下尾帧和焦点响应。收益需测量，不预先声称已经造成明显卡顿。[Adapters.kt](../../feature/live/src/main/kotlin/com/flytech/juying/feature/live/Adapters.kt)、[LiveFragment.kt](../../feature/live/src/main/kotlin/com/flytech/juying/feature/live/LiveFragment.kt)
+2. **消除焦点切换的冗余工作（已落地）。** 研究时直播 `ChannelAdapter.select` 对旧/新条目完整重绑并再次请求 logo；后续已改为选中态 payload，仅更新 `isSelected`。真机测试验证不重绑图片和文案；尚未测量帧耗时收益。[落地记录](2026-10-27-channel-switch-optimization.md)、[Adapters.kt](../../feature/live/src/main/kotlin/com/flytech/juying/feature/live/Adapters.kt)
 3. **按依赖和 ABI 管包体。** 保留现有 R8/资源裁剪，验证当前功能的 Release；若确有分发需求，再提供各 ABI 包。Python/Spider 是功能成本，不能为数字好看直接删掉；可在用户明确选择功能取舍后考虑轻量版本，默认不拆新产品、不破坏源兼容性。
 4. **保持首屏与后台任务的优先级。** 复用现有图片加载器和列表机制，先测各首页任务的耗时、并发和取消；`observeSources` 冷流被多个消费者订阅、存储发现每次注册/枚举，值得测量重复工作，再决定是否在 Repository 层共享。不要先加一套全局缓存。
 5. **把低端降级和性能证据做成闭环。** 复用 DeviceProfile，检查所有阴影、透明叠层、图片规格和动画是否真正服从档位；用有限的 FrameMetrics 采样或已有设备脚本记录结果。已有 build12 验证文档的 P95 85ms、最长 117ms 属于旧产物和特定场景，不能当成本轮或最终 build13 的复测通过。[已有验证记录](../UX_12_VERIFICATION_20261027.md)
@@ -82,4 +84,4 @@
 
 已完成：固定提交的构建与关键源码检查、官方 release 体积核对。
 
-未完成：下载解包 Aerial APK、当前源码重建、qytech6666 上的安装/帧率/PSS/冷启动对照、聚映任何代码优化。本文描述可解释性能的设计手段，不保证复用某一手段就有相同收益。
+该只读研究未完成：下载解包 Aerial APK、Aerial 源码重建、qytech6666 上的安装/帧率/PSS/冷启动对照。聚映后续代码优化及验证单独记录于上方链接。本文描述可解释性能的设计手段，不保证复用某一手段就有相同收益。

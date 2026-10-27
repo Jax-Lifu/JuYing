@@ -59,13 +59,24 @@ class CctvNativeHdTest {
                 surface = it.findViewById(com.flytech.juying.feature.player.R.id.surface)
             }
             suspend fun playing(channel: String) = withContext(Dispatchers.Main) {
-                withTimeout(60_000) {
-                    while (model.currentRequest?.ref != channel || !model.ui.value.playback.isPlaying || model.positionMs() < 3_000 ||
-                        model.ui.value.playback.videoHeight < 720) {
-                        check(model.ui.value.error == null) { model.ui.value.error.orEmpty() }
-                        check(model.ui.value.webPage == null) { "央视直播不应打开网页播放器" }
-                        delay(200)
+                try {
+                    withTimeout(60_000) {
+                        while (model.currentRequest?.ref != channel || !model.ui.value.playback.isPlaying || model.positionMs() < 3_000 ||
+                            model.ui.value.playback.videoHeight < 720) {
+                            check(model.ui.value.error == null) { "央视直播播放失败" }
+                            check(!model.ui.value.switchError) { "央视直播切台解析失败" }
+                            check(model.ui.value.webPage == null) { "央视直播不应打开网页播放器" }
+                            delay(200)
+                        }
                     }
+                } finally {
+                    val state = model.ui.value
+                    instrumentation.sendStatus(0, Bundle().apply {
+                        putString("stream", "CCTV_LIVE_STATE target=$channel current=${model.currentRequest?.ref} " +
+                            "pending=${state.pendingTitle != null} switchError=${state.switchError} " +
+                            "playing=${state.playback.isPlaying} buffering=${state.playback.isBuffering} " +
+                            "width=${state.playback.videoWidth} height=${state.playback.videoHeight} position=${model.positionMs()}\n")
+                    })
                 }
                 assertTrue(model.ui.value.playback.videoWidth >= 1280)
                 assertTrue(model.ui.value.isLive)
@@ -86,7 +97,9 @@ class CctvNativeHdTest {
                 if (!it.findViewById<View>(com.flytech.juying.feature.player.R.id.controls).isShown)
                     it.findViewById<View>(com.flytech.juying.feature.player.R.id.video_stage).performClick()
                 assertFalse(it.findViewById<View>(com.flytech.juying.feature.player.R.id.web_container).isShown)
-                it.findViewById<View>(com.flytech.juying.feature.player.R.id.next).performClick()
+                val next = it.findViewById<View>(com.flytech.juying.feature.player.R.id.next)
+                assertTrue(next.isShown && next.isEnabled)
+                assertTrue(next.performClick())
             }
             playing("cctv2")
             assertRenderedFrame(surface)

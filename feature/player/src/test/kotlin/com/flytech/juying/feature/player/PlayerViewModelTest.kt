@@ -116,6 +116,161 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun `rapid channel changes advance from the pending target and ignore its late result`() = runTest {
+        live.groups = flowOf(listOf(ChannelGroup("test", listOf("a", "b", "c").map { Channel(it, it) })))
+        lateinit var middle: Continuation<PlayItem>
+        live.resolveItem = { if (it.id == "b") suspendCoroutine { result -> middle = result } else item(it.id) }
+        vm.start(request("a"))
+        vm.zap(1)
+        vm.zap(1)
+        middle.resume(item("b"))
+        assertEquals(listOf("a", "c"), engine.prepared.map { it.id })
+        assertEquals("c", vm.currentRequest?.ref)
+    }
+
+    @Test
+    fun `channel lookup accumulates repeated and opposite keys while keeping one final target`() = runTest {
+        val ready = CompletableDeferred<Unit>()
+        live.groups = flow {
+            ready.await()
+            emit(listOf(ChannelGroup("test", listOf("a", "b", "c", "d").map { Channel(it, it) })))
+        }
+        vm.start(request("a"))
+        vm.zap(1)
+        vm.zap(1)
+        vm.zap(-1)
+        vm.zap(1)
+        ready.complete(Unit)
+        assertEquals(listOf("a", "c"), engine.prepared.map { it.id })
+    }
+
+    @Test
+    fun `selecting the current channel cancels a pending switch without preparing again`() = runTest {
+        lateinit var target: Continuation<PlayItem>
+        live.resolveItem = { if (it.id == "b") suspendCoroutine { result -> target = result } else item(it.id) }
+        vm.start(request("a"))
+        vm.start(request("b"))
+        vm.start(request("a"))
+        target.resume(item("b"))
+        assertEquals(listOf("a"), engine.prepared.map { it.id })
+        assertNull(vm.ui.value.pendingTitle)
+    }
+
+    @Test
+    fun `new zap cancels resolution before the next channel lookup finishes`() = runTest {
+        val channels = listOf(ChannelGroup("test", listOf("a", "b", "c").map { Channel(it, it) }))
+        live.groups = flowOf(channels)
+        lateinit var middle: Continuation<PlayItem>
+        live.resolveItem = { if (it.id == "b") suspendCoroutine { result -> middle = result } else item(it.id) }
+        vm.start(request("a"))
+        vm.zap(1)
+        val ready = CompletableDeferred<Unit>()
+        live.groups = flow { ready.await(); emit(channels) }
+        vm.zap(1)
+        middle.resume(item("b"))
+        assertEquals(listOf("a"), engine.prepared.map { it.id })
+        ready.complete(Unit)
+        assertEquals(listOf("a", "c"), engine.prepared.map { it.id })
+    }
+
+    @Test
+    fun `failed channel lookup preserves playback and can retry the intended direction`() = runTest {
+        vm.start(request("a"))
+        live.groups = flow { error("unavailable") }
+        vm.zap(1)
+        assertEquals("a", vm.currentRequest?.ref)
+        assertEquals(true, vm.ui.value.switchError)
+        assertNull(vm.ui.value.error)
+        live.groups = flowOf(listOf(ChannelGroup("test", listOf("a", "b").map { Channel(it, it) })))
+        vm.retry()
+        assertEquals(listOf("a", "b"), engine.prepared.map { it.id })
+        assertEquals(false, vm.ui.value.switchError)
+    }
+
+    @Test
+    fun `channel keys during initial resolution skip the cancelled initial target`() = runTest {
+        lateinit var initial: Continuation<PlayItem>
+        live.resolveItem = { if (it.id == "a") suspendCoroutine { result -> initial = result } else item(it.id) }
+        live.groups = flowOf(listOf(ChannelGroup("test", listOf("a", "b").map { Channel(it, it) })))
+        vm.start(request("a"))
+        vm.zap(1)
+        initial.resume(item("a"))
+        assertEquals(listOf("b"), engine.prepared.map { it.id })
+    }
+
+    @Test
+    fun `empty channel lookup resumes the cancelled initial request`() = runTest {
+        lateinit var initial: Continuation<PlayItem>
+        var calls = 0
+        live.resolveItem = {
+            if (calls++ == 0) suspendCoroutine { result -> initial = result } else item(it.id)
+        }
+        live.groups = flowOf(emptyList())
+        vm.start(request("a"))
+        vm.zap(1)
+        initial.resume(item("late"))
+        assertEquals(listOf("a"), engine.prepared.map { it.id })
+        assertEquals("a", vm.currentRequest?.ref)
+        assertNull(vm.ui.value.pendingTitle)
+        engine.state.value = PlayerState(isPlaying = true)
+        assertEquals(false, vm.ui.value.loading)
+    }
+
+    @Test
+    fun `channel lookup exposes a cancellable switch before the target is known`() = runTest {
+        val ready = CompletableDeferred<Unit>()
+        live.groups = flow { ready.await(); emit(listOf(ChannelGroup("test", listOf(Channel("a", "a"), Channel("b", "b"))))) }
+        vm.start(request("a"))
+        vm.zap(1)
+        assertEquals("", vm.ui.value.pendingTitle)
+        vm.cancelSwitch()
+        ready.complete(Unit)
+        assertNull(vm.ui.value.pendingTitle)
+        assertEquals(listOf("a"), engine.prepared.map { it.id })
+    }
+
+    @Test
+    fun `opposite keys cancel a lookup based on the playing channel`() = runTest {
+        val ready = CompletableDeferred<Unit>()
+        live.groups = flow { ready.await(); emit(listOf(ChannelGroup("test", listOf(Channel("a", "a"), Channel("b", "b"))))) }
+        vm.start(request("a"))
+        vm.zap(1)
+        vm.zap(-1)
+        ready.complete(Unit)
+        assertEquals(listOf("a"), engine.prepared.map { it.id })
+        assertNull(vm.ui.value.pendingTitle)
+        vm.zap(-1)
+        assertEquals("b", vm.currentRequest?.ref)
+    }
+
+    @Test
+    fun `opposite keys resume the pending base instead of losing its selection`() = runTest {
+        val target = CompletableDeferred<PlayItem>()
+        val ready = CompletableDeferred<Unit>()
+        live.groups = flow { ready.await(); emit(emptyList()) }
+        live.resolveItem = { if (it.id == "b") target.await() else item(it.id) }
+        vm.start(request("a"))
+        vm.start(request("b"))
+        vm.zap(1)
+        vm.zap(-1)
+        target.complete(item("b"))
+        ready.complete(Unit)
+        assertEquals(listOf("a", "b"), engine.prepared.map { it.id })
+    }
+
+    @Test
+    fun `cancel switch clears a failed lookup direction before the next zap`() = runTest {
+        vm.start(request("a"))
+        live.groups = flow { error("unavailable") }
+        vm.zap(1)
+        vm.cancelSwitch()
+        live.groups = flowOf(listOf(ChannelGroup("test", listOf("a", "b", "c").map { Channel(it, it) })))
+        vm.zap(-1)
+        assertEquals("c", vm.currentRequest?.ref)
+        assertEquals(false, vm.ui.value.switchError)
+    }
+
+    @Test
     fun `pending channel zap cannot replace an explicit newer request`() = runTest {
         val groupsReady = CompletableDeferred<Unit>()
         live.groups = flow {

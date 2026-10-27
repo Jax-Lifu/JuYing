@@ -212,8 +212,8 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.programmeProgress.isVisible = s.isLive && programmes.isNotEmpty()
         val episodeRef = vm.currentRequest?.ref
         val episodeIndex = s.episodes.indexOfFirst { episodeRef != null && (it.ref == episodeRef || episodeRef in it.legacyRefs) }
-        binding.previous.isEnabled = s.pendingTitle == null && (s.isLive || episodeIndex > 0)
-        binding.next.isEnabled = s.pendingTitle == null && (s.isLive || episodeIndex >= 0 && episodeIndex < s.episodes.lastIndex)
+        binding.previous.isEnabled = s.isLive || s.pendingTitle == null && episodeIndex > 0
+        binding.next.isEnabled = s.isLive || s.pendingTitle == null && episodeIndex >= 0 && episodeIndex < s.episodes.lastIndex
         binding.previous.alpha = if (binding.previous.isEnabled) 1f else .35f
         binding.next.alpha = if (binding.next.isEnabled) 1f else .35f
         binding.previous.contentDescription = getString(if (s.isLive) D.string.ui_previous_channel else R.string.player_previous_episode)
@@ -224,7 +224,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.playPause.contentDescription = getString(if (s.playback.isPlaying) D.string.ui_pause else D.string.ui_play)
         if (s.isLive) binding.time.setText(D.string.ui_live_now)
         val recoveryWasVisible = binding.recovery.isVisible
-        binding.recovery.isVisible = s.error != null || s.pendingTitle != null
+        binding.recovery.isVisible = s.error != null || s.pendingTitle != null || s.switchError
         binding.error.text = s.resolutionError ?: getString(when {
             s.switchError -> D.string.ui_resolve_error
             s.pendingTitle != null -> D.string.ui_resolving
@@ -232,12 +232,12 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         })
         binding.pendingTitle.text = s.pendingTitle.orEmpty()
         binding.pendingTitle.isVisible = s.pendingTitle != null
-        binding.cancelSwitch.isVisible = s.pendingTitle != null
+        binding.cancelSwitch.isVisible = s.pendingTitle != null || s.switchError
         binding.cancelSwitch.setText(if (s.switchError) D.string.ui_keep_playing else D.string.ui_cancel_switch)
         binding.retry.isVisible = s.error != null || s.switchError
         binding.returnPrevious.isVisible = s.error != null && s.canReturn
         if (binding.recovery.isVisible && !recoveryWasVisible) {
-            (if (s.pendingTitle != null) binding.cancelSwitch else if (s.canReturn) binding.returnPrevious else binding.retry).requestFocus()
+            (if (s.pendingTitle != null || s.switchError) binding.cancelSwitch else if (s.canReturn) binding.returnPrevious else binding.retry).requestFocus()
         }
         val req = vm.currentRequest
         if (s.isLive && epgKey != "${req?.sourceId}:${req?.ref}") refreshProgramme()

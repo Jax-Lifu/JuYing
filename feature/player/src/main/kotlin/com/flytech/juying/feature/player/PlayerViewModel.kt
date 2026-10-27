@@ -78,6 +78,8 @@ class PlayerViewModel @Inject constructor(
     private var loadJob: Job? = null
     private var forwardJob: Job? = null
     private var zapJob: Job? = null
+    // 列表查询未返回时合并方向键；pending 保留本轮基点，不排队创建播放器。
+    private var zapDelta = 0
     private var checkpointJob: Job? = null
     private var episodeJob: Job? = null
     private var episodeKey: Pair<String, String>? = null
@@ -87,8 +89,12 @@ class PlayerViewModel @Inject constructor(
     private val historyWrites = Mutex()
 
     fun start(req: PlayRequest) {
-        if (request == req && currentItem != null && _ui.value.error == null) return          // 旋转/重建 Activity 时不重复加载
         zapJob?.cancel()
+        zapDelta = 0
+        if (request == req && currentItem != null && _ui.value.error == null) {
+            cancelSwitch()
+            return
+        }
         load(req)
     }
 
@@ -171,9 +177,12 @@ class PlayerViewModel @Inject constructor(
     /** Cancel only the unresolved target; the original decoder and its callbacks stay active. */
     fun cancelSwitch() {
         loadJob?.cancel(); zapJob?.cancel(); pending = null
+        zapDelta = 0
         _ui.value = _ui.value.copy(pendingTitle = null, switchError = false, resolutionError = null)
     }
-    fun retry() { (pending ?: request)?.let(::load) }
+    fun retry() {
+        if (zapDelta != 0) zap(0) else (pending ?: request)?.let(::start)
+    }
     fun returnPrevious() { previous?.let(::start) }
     fun selectLine(index: Int) {
         val line = lines.getOrNull(index) ?: return
@@ -313,13 +322,30 @@ class PlayerViewModel @Inject constructor(
 
     /** 直播换台：delta = +1 下一个 / -1 上一个。 */
     fun zap(delta: Int) {
-        val req = request ?: return
+        val req = pending ?: request ?: return
         if (req.kind != PlayKind.LIVE) return
         zapJob?.cancel()
+        loadJob?.cancel()
+        zapDelta += delta
+        val offset = zapDelta
+        if (offset == 0) {
+            start(req)
+            return
+        }
+        // 查询阶段尚不知道目标名称，也要允许返回键取消；首台没有可保留的播放，返回仍退出。
+        _ui.value = if (currentItem == null) _ui.value.copy(loading = true, error = null)
+            else _ui.value.copy(pendingTitle = "", switchError = false, resolutionError = null)
         zapJob = viewModelScope.launch {
-            zapChannel(req.sourceId, req.ref, delta)?.let { next ->
+            try {
+                val next = zapChannel(req.sourceId, req.ref, offset)
                 ensureActive()
-                start(req.copy(ref = next.id, title = next.name))
+                start(if (next == null) req else req.copy(ref = next.id, title = next.name))
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                ensureActive()
+                Timber.w("Channel lookup failed: %s", t.javaClass.simpleName)
+                _ui.value = if (currentItem == null) _ui.value.copy(loading = false, error = "无法播放")
+                    else _ui.value.copy(switchError = true, resolutionError = null)
             }
         }
     }

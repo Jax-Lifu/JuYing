@@ -80,8 +80,8 @@ class ChannelAdapter(private val onFocus: (Channel) -> Unit, private val onClick
         val old = currentList.indexOfFirst { it.id == selectedId }
         selectedId = channelId
         val next = currentList.indexOfFirst { it.id == selectedId }
-        if (old >= 0) notifyItemChanged(old)
-        if (next >= 0) notifyItemChanged(next)
+        if (old >= 0) notifyItemChanged(old, SelectionPayload)
+        if (next >= 0) notifyItemChanged(next, SelectionPayload)
     }
 
     inner class VH(val b: ItemChannelBinding) : RecyclerView.ViewHolder(b.root) {
@@ -95,6 +95,13 @@ class ChannelAdapter(private val onFocus: (Channel) -> Unit, private val onClick
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         VH(ItemChannelBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
+    override fun onBindViewHolder(holder: VH, position: Int, payloads: MutableList<Any>) {
+        // 焦点切换只更新选中态，避免重复提交频道 logo 的图片请求。
+        if (payloads.isNotEmpty() && payloads.all { it === SelectionPayload }) {
+            holder.b.root.isSelected = getItem(position).id == selectedId
+        } else onBindViewHolder(holder, position)
+    }
+
     override fun onBindViewHolder(holder: VH, position: Int) {
         val c = getItem(position)
         holder.b.name.text = c.name
@@ -105,4 +112,6 @@ class ChannelAdapter(private val onFocus: (Channel) -> Unit, private val onClick
     }
 
     override fun onViewRecycled(holder: VH) { holder.b.logo.loadImage(null); super.onViewRecycled(holder) }
+
+    private object SelectionPayload
 }
