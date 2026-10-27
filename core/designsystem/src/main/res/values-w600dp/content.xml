@@ -1,0 +1,4 @@
+<resources>
+    <integer name="jy_vod_columns">4</integer>
+    <integer name="jy_episode_columns">4</integer>
+</resources>

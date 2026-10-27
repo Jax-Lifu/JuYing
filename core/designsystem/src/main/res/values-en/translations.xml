@@ -1,0 +1,21 @@
+<resources>
+  <string name="nav_home">Home</string>
+  <string name="nav_live">Live</string>
+  <string name="nav_vod">On demand</string>
+  <string name="nav_browse">Files</string>
+  <string name="nav_search">Search</string>
+  <string name="nav_history">History</string>
+  <string name="nav_settings">Settings</string>
+  <string name="loading_failed">Loading failed</string>
+  <string name="content_loading">Loading…</string>
+  <string name="content_failed">Unable to load. Try again.</string>
+  <string name="content_empty">No content</string>
+  <string name="content_retry">Retry</string>
+  <string name="content_more">Load next page</string>
+  <string name="content_back">Back</string>
+  <string name="content_search">Search</string>
+  <string name="content_sources">Manage sources</string>
+  <string name="content_select_source">Choose source</string>
+  <string name="content_select_site">Choose site</string>
+  <string name="content_select_line">Choose playback line</string>
+</resources>

@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(juying_cctv_h5e LANGUAGES CXX)
+
+add_library(juying_cctv_h5e SHARED juying_cctv_h5e.cpp
+    third_party/cctv_h5e/cctv_h5e_decrypt.cpp)
+target_compile_features(juying_cctv_h5e PRIVATE cxx_std_17)
+target_compile_definitions(juying_cctv_h5e PRIVATE JUYING_H5E_BUILD)
+target_include_directories(juying_cctv_h5e PRIVATE third_party/cctv_h5e)
+set_target_properties(juying_cctv_h5e PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
+if(ANDROID)
+    target_sources(juying_cctv_h5e PRIVATE juying_cctv_h5e_jni.cpp)
+else()
+    enable_testing()
+    add_executable(juying_cctv_h5e_test juying_cctv_h5e_test.cpp)
+    target_compile_features(juying_cctv_h5e_test PRIVATE cxx_std_17)
+    target_include_directories(juying_cctv_h5e_test PRIVATE third_party/cctv_h5e)
+    target_link_libraries(juying_cctv_h5e_test PRIVATE juying_cctv_h5e)
+    add_test(NAME juying_cctv_h5e_test COMMAND juying_cctv_h5e_test)
+endif()

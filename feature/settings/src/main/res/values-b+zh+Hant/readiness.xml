@@ -1,0 +1,14 @@
+<resources>
+    <string name="sources_import_file">選擇本機清單檔案</string>
+    <string name="sources_epg_url">節目表 XMLTV 位址（選填）</string>
+    <string name="sources_user_agent">User-Agent（選填）</string>
+    <string name="sources_referer">Referer 位址（選填）</string>
+    <string name="sources_check">檢查連線</string>
+    <string name="sources_checking">正在讀取來源…</string>
+    <string name="sources_checked">已連線，讀取到 %1$d 項。播放時仍需檢查個別線路。</string>
+    <string name="sources_check_empty">已連線，但沒有可用內容。請檢查訂閱內容。</string>
+    <string name="sources_check_failed">無法讀取來源。請檢查位址、網路和存取憑證後重試。</string>
+    <string name="sources_check_timeout">連線逾時，請檢查網路後重試。</string>
+    <string name="sources_file_failed">無法開啟檔案。請確認裝置提供檔案選擇器，並重新選擇可讀取的清單。</string>
+    <string name="sources_invalid_epg">節目表與 Referer 請填寫有效的 HTTP(S) 位址，請求標頭不能包含換行。</string>
+</resources>

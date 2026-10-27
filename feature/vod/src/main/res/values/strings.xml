@@ -1,0 +1,5 @@
+<resources>
+    <string name="vod_title">点播</string>
+    <string name="vod_episodes">选择剧集</string>
+    <string name="vod_no_sources">尚未添加点播订阅</string>
+</resources>

@@ -1,0 +1,4 @@
+<resources>
+<bool name="jy_wide">false</bool><integer name="jy_source_columns">1</integer><dimen name="jy_hero_height">240dp</dimen><dimen name="jy_history_width">236dp</dimen>
+<style name="JySection" parent="JyTitle"><item name="android:textSize">20sp</item><item name="android:paddingTop">16dp</item><item name="android:paddingBottom">12dp</item></style>
+</resources>

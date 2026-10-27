@@ -1,0 +1,46 @@
+<resources>
+    <dimen name="jy_content_gap">8dp</dimen>
+    <dimen name="jy_touch_height">48dp</dimen>
+    <dimen name="jy_poster_height">192dp</dimen>
+    <dimen name="jy_poster_carousel_height">192dp</dimen>
+    <dimen name="jy_detail_cover_width">96dp</dimen>
+    <dimen name="jy_detail_cover_height">144dp</dimen>
+    <integer name="jy_vod_columns">2</integer>
+    <integer name="jy_episode_columns">2</integer>
+    <style name="JyAction" parent="Widget.AppCompat.Button.Borderless">
+        <item name="android:background">@drawable/bg_action</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textColor">@color/action_text</item>
+        <item name="android:textSize">@dimen/jy_text_body</item>
+        <item name="android:minHeight">@dimen/jy_touch_height</item>
+        <item name="android:paddingHorizontal">@dimen/jy_padding</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:drawablePadding">8dp</item>
+        <item name="android:drawableTint">@color/action_text</item>
+        <item name="android:focusable">true</item>
+    </style>
+    <style name="JyToolbarAction" parent="JyAction">
+        <item name="android:background">@drawable/bg_toolbar_action</item>
+    </style>
+    <style name="JyTitle">
+        <item name="android:textColor">?attr/jy_on_surface</item>
+        <item name="android:textSize">@dimen/jy_text_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="JyBody">
+        <item name="android:textColor">?attr/jy_on_surface_secondary</item>
+        <item name="android:textSize">@dimen/jy_text_body</item>
+    </style>
+    <string name="content_loading">正在加载…</string>
+    <string name="content_failed">加载失败，请重试</string>
+    <string name="content_empty">暂无内容</string>
+    <string name="content_retry">重试</string>
+    <string name="content_more">加载下一页</string>
+    <string name="content_back">返回</string>
+    <string name="content_search">搜索</string>
+    <string name="content_sources">管理订阅</string>
+    <string name="content_select_source">选择订阅</string>
+    <string name="content_select_site">选择子站</string>
+    <string name="content_select_line">选择播放线路</string>
+</resources>

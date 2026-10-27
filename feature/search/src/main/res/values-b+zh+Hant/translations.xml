@@ -1,0 +1,9 @@
+<resources>
+  <string name="search_title">跨源搜尋</string>
+  <string name="search_hint">輸入片名或關鍵字</string>
+  <string name="search_catalog_note">央視按目錄頁檢索；可繼續載入下一頁。</string>
+  <string name="search_progress">已返回 %1$d / %2$d 個站點 · %3$d 條結果</string>
+  <string name="search_failures">未成功：%1$s</string>
+  <string name="search_failed_label">失敗</string>
+  <string name="search_timeout_label">逾時</string>
+</resources>

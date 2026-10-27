@@ -1,0 +1,6 @@
+<resources>
+ <string name="vod_categories">分類</string>
+ <string name="vod_description_more">檢視完整簡介</string>
+ <string name="vod_loading_more">正在取得更多內容…</string>
+ <string name="vod_end">已全部載入</string>
+</resources>

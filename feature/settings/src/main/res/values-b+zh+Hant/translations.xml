@@ -1,0 +1,17 @@
+<resources>
+  <string name="sources_title">播放源管理</string>
+  <string name="sources_add">新增播放源</string>
+  <string name="sources_name">播放源名稱</string>
+  <string name="sources_url">連線位址</string>
+  <string name="sources_enabled">啟用此播放源</string>
+  <string name="sources_enable">啟用播放源</string>
+  <string name="sources_disable">停用播放源</string>
+  <string name="sources_builtin">%1$s · 內建</string>
+  <string name="sources_disabled">%1$s · 已停用</string>
+  <string name="sources_save">儲存</string>
+  <string name="sources_cancel">取消</string>
+  <string name="sources_saved">播放源已儲存</string>
+  <string name="sources_invalid_name">請輸入播放源名稱</string>
+  <string name="sources_invalid_url">請輸入此協定的有效連線位址與路徑</string>
+  <string name="sources_failed">儲存失敗，請重試</string>
+</resources>

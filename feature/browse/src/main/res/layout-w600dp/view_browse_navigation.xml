@@ -1,0 +1,19 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+    <androidx.appcompat.widget.AppCompatButton android:id="@+id/add_storage" style="@style/JyAction"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:minWidth="48dp" android:paddingHorizontal="12dp" android:text="@string/browse_locations_short"
+        android:contentDescription="@string/browse_add_storage" app:drawableStartCompat="@drawable/ic_files"/>
+    <androidx.appcompat.widget.AppCompatButton android:id="@+id/parent" style="@style/JyAction"
+        android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp"
+        android:minWidth="48dp" android:paddingHorizontal="12dp" android:text="@string/browse_parent_short"
+        android:contentDescription="@string/ui_parent" app:drawableStartCompat="@drawable/ic_back"/>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/breadcrumbs"
+        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginHorizontal="8dp" android:minHeight="48dp" android:overScrollMode="never"/>
+    <androidx.appcompat.widget.AppCompatButton android:id="@+id/manage" style="@style/JyAction"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:minWidth="48dp" android:paddingHorizontal="12dp" android:text="@string/ui_settings"
+        android:contentDescription="@string/browse_connection_settings" app:drawableStartCompat="@drawable/ic_settings"/>
+</LinearLayout>

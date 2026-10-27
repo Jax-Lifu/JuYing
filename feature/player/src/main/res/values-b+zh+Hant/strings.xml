@@ -1,0 +1,11 @@
+<resources>
+    <string name="player_episodes">選集</string>
+    <string name="player_previous_episode">上一集</string>
+    <string name="player_next_episode">下一集</string>
+    <string name="player_quality">清晰度</string>
+    <string name="player_auto_quality">自動</string>
+    <string name="player_single_quality">目前片源僅提供此清晰度</string>
+    <string name="player_quality_wait">影片資訊載入中</string>
+    <string name="player_speed">播放速度</string>
+    <string name="player_speed_default">1.0×</string>
+</resources>

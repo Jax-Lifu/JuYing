@@ -1,0 +1,6 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">
+ <path android:fillColor="?attr/jy_surface_variant" android:pathData="M0,0 L320,0 L320,180 L0,180 Z"/>
+ <group android:translateX="142" android:translateY="72" android:scaleX="1.5" android:scaleY="1.5">
+  <path android:strokeColor="?attr/jy_on_surface_secondary" android:strokeAlpha="0.5" android:strokeWidth="1.4" android:fillColor="@android:color/transparent" android:pathData="M3,4 L21,4 L21,20 L3,20 Z M7,4 L7,20 M17,4 L17,20 M3,8 L7,8 M3,16 L7,16 M17,8 L21,8 M17,16 L21,16"/>
+ </group>
+</vector>

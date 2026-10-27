@@ -1,0 +1,20 @@
+<resources>
+    <style name="PlayerAction" parent="JyAction">
+        <item name="android:background">@drawable/bg_player_transport</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">@dimen/player_action_text</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:drawableTint">#FFFFFF</item>
+        <item name="android:drawablePadding">8dp</item>
+    </style>
+    <style name="PlayerIcon" parent="Widget.AppCompat.ImageButton">
+        <item name="android:layout_width">@dimen/player_control_size</item>
+        <item name="android:layout_height">@dimen/player_control_size</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:background">@drawable/bg_player_transport</item>
+        <item name="android:padding">@dimen/player_icon_padding</item>
+        <item name="android:tint">#FFFFFF</item>
+        <item name="android:focusable">true</item>
+    </style>
+</resources>

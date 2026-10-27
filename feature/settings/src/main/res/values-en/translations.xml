@@ -1,0 +1,17 @@
+<resources>
+  <string name="sources_title">Playback sources</string>
+  <string name="sources_add">Add source</string>
+  <string name="sources_name">Source name</string>
+  <string name="sources_url">Connection address</string>
+  <string name="sources_enabled">Enable this source</string>
+  <string name="sources_enable">Enable source</string>
+  <string name="sources_disable">Disable source</string>
+  <string name="sources_builtin">%1$s · Built in</string>
+  <string name="sources_disabled">%1$s · Disabled</string>
+  <string name="sources_save">Save</string>
+  <string name="sources_cancel">Cancel</string>
+  <string name="sources_saved">Source saved</string>
+  <string name="sources_invalid_name">Enter a source name</string>
+  <string name="sources_invalid_url">Enter a valid address and path for this protocol</string>
+  <string name="sources_failed">Unable to save. Try again.</string>
+</resources>

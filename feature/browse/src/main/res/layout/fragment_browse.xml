@@ -1,0 +1,24 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="@dimen/jy_padding">
+    <LinearLayout android:id="@+id/storage_toolbar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+        <TextView style="@style/JyTitle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginEnd="12dp" android:text="@string/browse_add_storage"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/add_nas" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/browse_add_nas"
+            app:drawableStartCompat="@drawable/ic_vod" android:drawablePadding="8dp"/>
+    </LinearLayout>
+    <include android:id="@+id/directory_navigation" layout="@layout/view_browse_navigation"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone"/>
+    <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:indeterminate="true" android:visibility="gone"/>
+    <TextView android:id="@+id/status" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp" android:gravity="center" android:accessibilityLiveRegion="polite" android:visibility="gone"/>
+    <LinearLayout android:id="@+id/actions" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:visibility="gone">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/grant_storage" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/browse_grant_storage" app:drawableStartCompat="@drawable/ic_files" android:drawablePadding="8dp"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/retry" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/ui_reconnect" app:drawableStartCompat="@drawable/ic_play" android:drawablePadding="8dp"/>
+    </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/files" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp"/>
+</LinearLayout>

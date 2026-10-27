@@ -1,7 +1,0 @@
-interface:
-  display_name: "聚映统一多源媒体"
-  short_description: "统一多源、搜索、选集与跨端播放约束"
-  default_prompt: "使用 $juying-media-platform 规划或实现一个统一多源媒体能力。"
-policy:
-  allow_implicit_invocation: true
-

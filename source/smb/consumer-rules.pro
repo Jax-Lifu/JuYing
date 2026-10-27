@@ -1,0 +1,5 @@
+-dontwarn javax.el.**
+-dontwarn org.slf4j.**
+-dontwarn org.ietf.jgss.**
+-dontwarn sun.security.**
+-keep class com.hierynomus.** { *; }

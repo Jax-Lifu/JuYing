@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="jy_padding">24dp</dimen>
+    <dimen name="jy_text_title">24sp</dimen>
+    <dimen name="jy_text_body">17sp</dimen>
+    <dimen name="jy_group_list_width">160dp</dimen>
+</resources>

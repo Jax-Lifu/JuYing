@@ -1,0 +1,49 @@
+# ============================================================================
+# 聚映 (JuYing) 原生 View + Media3 核心路径 Baseline Profile (AOT 预编译规则)
+# ============================================================================
+
+# 1. 应用冷启动、导航壳与设备硬件档位探测
+Lcom/flytech/juying/JuyingApplication;
+HSPLcom/flytech/juying/JuyingApplication;->**(**)**
+Lcom/flytech/juying/MainActivity;
+HSPLcom/flytech/juying/MainActivity;->**(**)**
+Lcom/flytech/juying/AppNavigator;
+HSPLcom/flytech/juying/AppNavigator;->**(**)**
+Lcom/flytech/juying/core/common/DeviceProfileDetector;
+HSPLcom/flytech/juying/core/common/DeviceProfileDetector;->**(**)**
+
+# 2. 领域模型与多源数据仓库（Offline-First 磁盘快照读写、源注册表路由）
+Lcom/flytech/juying/core/model/**;
+HSPLcom/flytech/juying/core/model/**;->**(**)**
+Lcom/flytech/juying/core/data/**;
+HSPLcom/flytech/juying/core/data/**;->**(**)**
+Lcom/flytech/juying/core/domain/**;
+HSPLcom/flytech/juying/core/domain/**;->**(**)**
+Lcom/flytech/juying/core/database/**;
+HSPLcom/flytech/juying/core/database/**;->**(**)**
+Lcom/flytech/juying/core/datastore/**;
+HSPLcom/flytech/juying/core/datastore/**;->**(**)**
+Lcom/flytech/juying/core/network/**;
+HSPLcom/flytech/juying/core/network/**;->**(**)**
+
+# 3. 高频解析器与多源核心链路（M3U8/TXT 直播源流式解析、TVBox 配置解析、SMB URI 路由）
+Lcom/flytech/juying/source/api/playlist/PlaylistParser;
+HSPLcom/flytech/juying/source/api/playlist/PlaylistParser;->**(**)**
+Lcom/flytech/juying/source/tvbox/config/TvboxConfigParser;
+HSPLcom/flytech/juying/source/tvbox/config/TvboxConfigParser;->**(**)**
+Lcom/flytech/juying/source/smb/SmbTarget;
+HSPLcom/flytech/juying/source/smb/SmbTarget;->**(**)**
+
+# 4. 原生 View 基类、D-Pad 焦点缩放、直播列表 Adapter (DiffUtil) 与播放页
+Lcom/flytech/juying/core/ui/**;
+HSPLcom/flytech/juying/core/ui/**;->**(**)**
+Lcom/flytech/juying/feature/live/**;
+HSPLcom/flytech/juying/feature/live/**;->**(**)**
+Lcom/flytech/juying/feature/player/**;
+HSPLcom/flytech/juying/feature/player/**;->**(**)**
+
+# 5. 单实例播放引擎管控与 Media3 自定义协议路由
+Lcom/flytech/juying/player/api/**;
+HSPLcom/flytech/juying/player/api/**;->**(**)**
+Lcom/flytech/juying/player/media3/**;
+HSPLcom/flytech/juying/player/media3/**;->**(**)**

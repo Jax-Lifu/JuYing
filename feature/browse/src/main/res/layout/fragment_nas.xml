@@ -1,0 +1,77 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="@dimen/jy_padding"
+    android:importantForAutofill="noExcludeDescendants">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/back" style="@style/JyAction"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/ui_back" app:drawableStartCompat="@drawable/ic_back"/>
+        <TextView android:id="@+id/title" style="@style/JyTitle" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp"
+            android:text="@string/nas_devices_title"/>
+    </LinearLayout>
+    <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="8dp"
+        android:indeterminate="true" android:visibility="gone"/>
+    <TextView android:id="@+id/status" style="@style/JyBody" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:paddingVertical="8dp" android:accessibilityLiveRegion="polite"
+        android:visibility="gone"/>
+    <LinearLayout android:id="@+id/devices_panel" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/rescan" style="@style/JyAction"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="@string/nas_rescan" app:drawableStartCompat="@drawable/ic_search"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/manual_address" style="@style/JyAction"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp"
+            android:text="@string/nas_manual_address" app:drawableStartCompat="@drawable/ic_settings"/>
+    </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/devices" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp"/>
+    <ScrollView android:id="@+id/login_form" android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <EditText android:id="@+id/address" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="@dimen/jy_touch_height" android:inputType="textUri" android:singleLine="true"
+                android:imeOptions="actionNext|flagNoFullscreen" android:hint="@string/nas_address"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/username" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="@dimen/jy_touch_height" android:inputType="textNoSuggestions" android:singleLine="true"
+                android:imeOptions="actionNext|flagNoFullscreen" android:hint="@string/nas_username"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/password" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="@dimen/jy_touch_height" android:inputType="textPassword" android:singleLine="true"
+                android:imeOptions="actionNext|flagNoFullscreen" android:hint="@string/ui_password"
+                android:importantForAutofill="no" android:saveEnabled="false"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/domain" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="@dimen/jy_touch_height" android:inputType="textNoSuggestions" android:singleLine="true"
+                android:imeOptions="actionDone|flagNoFullscreen" android:hint="@string/nas_domain"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/read_shares" style="@style/JyAction"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:text="@string/nas_read_shares" app:drawableStartCompat="@drawable/ic_files"/>
+        </LinearLayout>
+    </ScrollView>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/shares" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp" android:visibility="gone"/>
+    <LinearLayout android:id="@+id/connection_actions" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:visibility="gone">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/edit_login" style="@style/JyAction"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="@string/nas_edit_login" app:drawableStartCompat="@drawable/ic_settings"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/manual_share_toggle" style="@style/JyAction"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp"
+            android:text="@string/nas_manual_share" app:drawableStartCompat="@drawable/ic_files"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/manual_fields" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:layout_marginTop="8dp" android:visibility="gone">
+        <EditText android:id="@+id/manual_share" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:minHeight="@dimen/jy_touch_height" android:inputType="textNoSuggestions" android:singleLine="true"
+            android:imeOptions="actionDone|flagNoFullscreen" android:hint="@string/nas_share_name"
+            android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/connect_share" style="@style/JyAction"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp"
+            android:text="@string/nas_connect" app:drawableStartCompat="@drawable/ic_check"/>
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,12 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="@dimen/jy_padding">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:gravity="center_vertical">
+  <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/ui_history_favorites" android:textSize="28sp" android:textStyle="bold"/>
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/clear" android:drawableStart="@drawable/ic_close" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_clear"/>
+ </LinearLayout>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="56dp">
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/recent" android:drawableStart="@drawable/ic_history" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_recent"/>
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/favorites" android:drawableStart="@drawable/ic_favorite" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_favorites"/>
+ </LinearLayout>
+ <TextView android:id="@+id/empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="32dp" android:text="@string/ui_no_history" android:gravity="center"/>
+ <androidx.recyclerview.widget.RecyclerView android:id="@+id/entries" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+</LinearLayout>

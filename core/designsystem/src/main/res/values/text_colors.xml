@@ -1,0 +1,8 @@
+<resources>
+  <color name="theme_juying_primary">#F5F4F1</color>
+  <color name="theme_juying_secondary">#ADB3BF</color>
+  <color name="theme_juying_light_primary">#171C1E</color>
+  <color name="theme_juying_light_secondary">#526168</color>
+  <color name="theme_juying_black_primary">#FFFFFF</color>
+  <color name="theme_juying_black_secondary">#B3BDC4</color>
+</resources>

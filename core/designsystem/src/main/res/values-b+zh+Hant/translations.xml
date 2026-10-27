@@ -1,0 +1,21 @@
+<resources>
+  <string name="nav_home">首頁</string>
+  <string name="nav_live">直播</string>
+  <string name="nav_vod">點播</string>
+  <string name="nav_browse">檔案</string>
+  <string name="nav_search">搜尋</string>
+  <string name="nav_history">歷史</string>
+  <string name="nav_settings">設定</string>
+  <string name="loading_failed">載入失敗</string>
+  <string name="content_loading">正在載入…</string>
+  <string name="content_failed">載入失敗，請重試</string>
+  <string name="content_empty">暫無內容</string>
+  <string name="content_retry">重試</string>
+  <string name="content_more">載入下一頁</string>
+  <string name="content_back">返回</string>
+  <string name="content_search">搜尋</string>
+  <string name="content_sources">管理播放源</string>
+  <string name="content_select_source">選擇播放源</string>
+  <string name="content_select_site">選擇子站</string>
+  <string name="content_select_line">選擇播放線路</string>
+</resources>

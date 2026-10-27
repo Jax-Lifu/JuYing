@@ -1,0 +1,14 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:layout_margin="@dimen/jy_content_gap" android:padding="@dimen/jy_content_gap"
+    android:orientation="vertical" android:background="@drawable/bg_media_card"
+    android:focusable="true" android:clickable="true" android:descendantFocusability="blocksDescendants">
+    <ImageView android:id="@+id/cover" android:layout_width="match_parent"
+        android:layout_height="@dimen/jy_poster_height" android:scaleType="centerCrop"
+        android:importantForAccessibility="no" android:background="@drawable/bg_media_artwork" android:clipToOutline="true" />
+    <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/jy_content_gap" android:textColor="?attr/jy_on_surface"
+        android:textSize="@dimen/jy_text_body" android:minLines="2" android:maxLines="2" android:ellipsize="end" />
+    <TextView android:id="@+id/caption" style="@style/JyBody" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" />
+</LinearLayout>

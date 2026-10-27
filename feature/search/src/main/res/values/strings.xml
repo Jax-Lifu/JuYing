@@ -1,0 +1,9 @@
+<resources>
+    <string name="search_title">跨源搜索</string>
+    <string name="search_hint">输入片名或关键词</string>
+    <string name="search_catalog_note">央视按目录页检索；本页没有结果时，可继续加载下一页。</string>
+    <string name="search_progress">已返回 %1$d / %2$d 个站点 · %3$d 条结果</string>
+    <string name="search_failures">未成功：%1$s</string>
+    <string name="search_failed_label">失败</string>
+    <string name="search_timeout_label">超时</string>
+</resources>

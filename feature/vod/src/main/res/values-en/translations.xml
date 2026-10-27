@@ -1,0 +1,5 @@
+<resources>
+  <string name="vod_title">On demand</string>
+  <string name="vod_episodes">Episodes</string>
+  <string name="vod_no_sources">No on demand sources added</string>
+</resources>

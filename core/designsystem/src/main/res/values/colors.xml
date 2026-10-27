@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 multisource-v2 的中性深色、浅色焦点保持一致。 -->
+    <color name="jy_background">#101115</color>
+    <color name="jy_surface">#191B20</color>
+    <color name="jy_surface_variant">#303238</color>
+    <color name="jy_accent">#F5F4F1</color>
+    <color name="jy_on_surface">#F5F4F1</color>
+    <color name="jy_on_surface_secondary">#ADB3BF</color>
+    <color name="jy_error">#FF453A</color>
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:startDestination="@id/nav_home">
+
+    <!-- 菜单项 id 必须与目的地 id 一致，setupWithNavController 才能联动 -->
+    <fragment android:id="@+id/nav_home" android:name="com.flytech.juying.feature.home.HomeFragment" />
+    <fragment android:id="@+id/nav_live" android:name="com.flytech.juying.feature.live.LiveFragment" />
+    <fragment android:id="@+id/nav_vod" android:name="com.flytech.juying.feature.vod.VodFragment" />
+    <fragment android:id="@+id/nav_browse" android:name="com.flytech.juying.feature.browse.BrowseFragment" />
+    <fragment android:id="@+id/nas" android:name="com.flytech.juying.feature.browse.NasFragment" />
+    <fragment android:id="@+id/nav_settings" android:name="com.flytech.juying.feature.settings.AppearanceFragment" />
+    <fragment android:id="@+id/sources" android:name="com.flytech.juying.feature.settings.SettingsFragment" />
+
+    <fragment android:id="@id/playback_settings" android:name="com.flytech.juying.feature.settings.PlaybackSettingsFragment" />
+
+    <!-- 非底栏目的地：从首页进入 -->
+    <fragment android:id="@+id/search" android:name="com.flytech.juying.feature.search.SearchFragment" />
+    <fragment android:id="@+id/vod_detail" android:name="com.flytech.juying.feature.vod.VodDetailFragment" />
+    <fragment android:id="@+id/history" android:name="com.flytech.juying.feature.history.HistoryFragment" />
+</navigation>

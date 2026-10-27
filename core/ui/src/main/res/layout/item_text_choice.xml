@@ -1,0 +1,6 @@
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:layout_margin="@dimen/jy_content_gap" android:padding="@dimen/jy_content_gap"
+    android:minHeight="@dimen/jy_touch_height" android:minWidth="@dimen/jy_touch_height"
+    android:gravity="center" android:textColor="@color/choice_text" android:textSize="@dimen/jy_text_body"
+    android:drawablePadding="8dp" android:background="@drawable/bg_choice" android:focusable="true" android:clickable="true" />

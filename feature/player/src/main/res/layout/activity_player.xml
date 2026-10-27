@@ -1,0 +1,44 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#000000" android:keepScreenOn="true">
+ <FrameLayout android:id="@+id/video_stage" android:layout_width="match_parent" android:layout_height="match_parent">
+  <SurfaceView android:id="@+id/surface" android:layout_width="match_parent" android:layout_height="match_parent"/>
+  <FrameLayout android:id="@+id/subtitle_container" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no"/>
+  <FrameLayout android:id="@+id/web_container" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone"/>
+  <ProgressBar android:id="@+id/loading" android:layout_width="48dp" android:layout_height="48dp" android:layout_gravity="center"/>
+ </FrameLayout>
+ <LinearLayout android:id="@+id/top_controls" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:gravity="center_vertical" android:paddingHorizontal="@dimen/jy_padding" android:paddingVertical="8dp" android:background="@drawable/bg_player_top">
+<androidx.appcompat.widget.AppCompatImageButton android:id="@+id/back" style="@style/PlayerIcon" android:src="@drawable/ic_back" android:contentDescription="@string/ui_back" android:tooltipText="@string/ui_back"/>
+  <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+   <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="@dimen/jy_text_title" android:maxLines="1" android:ellipsize="end"/>
+   <TextView android:id="@+id/source_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#D1D8E0" android:textSize="@dimen/player_action_text" android:maxLines="1" android:ellipsize="end"/>
+  </LinearLayout>
+<androidx.appcompat.widget.AppCompatImageButton android:id="@+id/switch_source" style="@style/PlayerIcon" android:src="@drawable/ic_player_lines" android:contentDescription="@string/ui_switch_source" android:tooltipText="@string/ui_switch_source"/>
+ </LinearLayout>
+ <LinearLayout android:id="@+id/controls" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom" android:background="@drawable/bg_player_bottom" android:orientation="vertical" android:paddingHorizontal="@dimen/jy_padding" android:paddingTop="16dp" android:paddingBottom="8dp">
+  <TextView android:id="@+id/programme" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:maxLines="2" android:ellipsize="end" android:visibility="gone"/>
+  <ProgressBar android:id="@+id/programme_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:max="1000" android:visibility="gone"/>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+   <TextView android:id="@+id/time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="@dimen/player_action_text"/>
+   <SeekBar android:id="@+id/progress" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:paddingHorizontal="12dp" android:progressTint="#FFFFFF" android:progressBackgroundTint="#667C8793" android:thumbTint="#FFFFFF" android:contentDescription="@string/ui_seek" android:max="1000"/>
+   <TextView android:id="@+id/duration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="@dimen/player_action_text"/>
+  </LinearLayout>
+  <LinearLayout android:id="@+id/action_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+   <LinearLayout android:id="@+id/transport" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical">
+<androidx.appcompat.widget.AppCompatImageButton android:id="@+id/previous" style="@style/PlayerIcon" android:src="@drawable/ic_player_previous" android:contentDescription="@string/player_previous_episode" android:tooltipText="@string/player_previous_episode"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/play_pause" style="@style/PlayerIcon" android:src="@drawable/ic_player_pause" android:contentDescription="@string/ui_pause" android:tooltipText="@string/ui_pause"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/next" style="@style/PlayerIcon" android:src="@drawable/ic_player_next" android:contentDescription="@string/player_next_episode" android:tooltipText="@string/player_next_episode"/>
+   </LinearLayout>
+   <HorizontalScrollView android:id="@+id/options" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:fillViewport="true" android:scrollbars="none">
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="end|center_vertical">
+<androidx.appcompat.widget.AppCompatButton android:id="@+id/quality" style="@style/PlayerAction" android:layout_width="wrap_content" android:layout_height="@dimen/player_control_size" android:layout_marginEnd="8dp" android:maxLines="1" android:text="@string/player_quality"/><androidx.appcompat.widget.AppCompatButton android:id="@+id/speed" style="@style/PlayerAction" android:layout_width="wrap_content" android:layout_height="@dimen/player_control_size" android:layout_marginEnd="8dp" android:maxLines="1" android:text="@string/player_speed_default"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/subtitles" style="@style/PlayerIcon" android:src="@drawable/ic_player_subtitles" android:contentDescription="@string/ui_subtitles" android:tooltipText="@string/ui_subtitles"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/audio" style="@style/PlayerIcon" android:src="@drawable/ic_player_audio" android:contentDescription="@string/ui_audio" android:tooltipText="@string/ui_audio"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/episodes" style="@style/PlayerIcon" android:src="@drawable/ic_player_episodes" android:contentDescription="@string/player_episodes" android:tooltipText="@string/player_episodes"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/channels" style="@style/PlayerIcon" android:src="@drawable/ic_live" android:contentDescription="@string/ui_channels" android:tooltipText="@string/ui_channels"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/lines" style="@style/PlayerIcon" android:src="@drawable/ic_player_lines" android:contentDescription="@string/ui_lines" android:tooltipText="@string/ui_lines"/><androidx.appcompat.widget.AppCompatImageButton android:id="@+id/fullscreen" style="@style/PlayerIcon" android:src="@drawable/ic_player_fullscreen" android:contentDescription="@string/ui_fullscreen" android:tooltipText="@string/ui_fullscreen"/>
+    </LinearLayout>
+   </HorizontalScrollView>
+  </LinearLayout>
+ </LinearLayout>
+ <LinearLayout android:id="@+id/recovery" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:layout_margin="24dp" android:padding="20dp" android:orientation="vertical" android:background="#F0191B20" android:visibility="gone">
+  <TextView android:id="@+id/error" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="20sp" android:accessibilityLiveRegion="polite"/>
+  <TextView android:id="@+id/pending_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#B6BCC8" android:layout_marginVertical="12dp"/>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+   <Button android:id="@+id/retry" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_retry"/>
+   <Button android:id="@+id/cancel_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_cancel_switch"/>
+  </LinearLayout>
+  <Button android:id="@+id/return_previous" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_return_previous"/>
+ </LinearLayout>
+</FrameLayout>

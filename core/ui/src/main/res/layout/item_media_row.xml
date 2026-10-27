@@ -1,0 +1,12 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="4dp"
+    android:minHeight="76dp" android:padding="12dp" android:gravity="center_vertical"
+    android:background="@drawable/bg_item_focusable" android:focusable="true" android:clickable="true"
+    android:descendantFocusability="blocksDescendants">
+    <ImageView android:id="@+id/icon" android:layout_width="32dp" android:layout_height="32dp" android:layout_marginEnd="16dp" android:importantForAccessibility="no"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="@dimen/jy_text_body" android:textColor="?attr/jy_on_surface" android:maxLines="2" android:ellipsize="end"/>
+        <TextView android:id="@+id/subtitle" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:layout_marginTop="4dp"/>
+        <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:max="1000" android:layout_marginTop="8dp"/>
+    </LinearLayout>
+</LinearLayout>

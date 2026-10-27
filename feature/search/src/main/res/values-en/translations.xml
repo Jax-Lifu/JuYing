@@ -1,0 +1,9 @@
+<resources>
+  <string name="search_title">Search across sources</string>
+  <string name="search_hint">Title or keyword</string>
+  <string name="search_catalog_note">CCTV searches its current catalog page. Load another page for more results.</string>
+  <string name="search_progress">%1$d / %2$d sites returned · %3$d results</string>
+  <string name="search_failures">Unavailable: %1$s</string>
+  <string name="search_failed_label">Failed</string>
+  <string name="search_timeout_label">Timed out</string>
+</resources>

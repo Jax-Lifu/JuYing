@@ -1,0 +1,5 @@
+<resources>
+  <string name="vod_title">點播</string>
+  <string name="vod_episodes">選擇劇集</string>
+  <string name="vod_no_sources">尚未新增點播來源</string>
+</resources>

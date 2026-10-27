@@ -1,0 +1,6 @@
+<resources>
+    <dimen name="jy_touch_height">56dp</dimen>
+    <dimen name="jy_poster_height">120dp</dimen>
+    <integer name="jy_vod_columns">5</integer>
+    <integer name="jy_episode_columns">4</integer>
+</resources>

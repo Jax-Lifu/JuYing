@@ -1,0 +1,1 @@
+<resources><attr name="jy_background" format="color"/><attr name="jy_surface" format="color"/><attr name="jy_surface_variant" format="color"/><attr name="jy_accent" format="color"/><attr name="jy_on_surface" format="color"/><attr name="jy_on_surface_secondary" format="color"/><attr name="jy_error" format="color"/></resources>

@@ -1,0 +1,14 @@
+<resources>
+    <string name="sources_import_file">Choose playlist file</string>
+    <string name="sources_epg_url">XMLTV programme guide URL (optional)</string>
+    <string name="sources_user_agent">User-Agent (optional)</string>
+    <string name="sources_referer">Referer URL (optional)</string>
+    <string name="sources_check">Check connection</string>
+    <string name="sources_checking">Reading source…</string>
+    <string name="sources_checked">Connected: %1$d items. Individual playback lines still need verification.</string>
+    <string name="sources_check_empty">Connected, but no content is available. Check the subscription.</string>
+    <string name="sources_check_failed">Cannot read source. Check its address, network and credentials, then retry.</string>
+    <string name="sources_check_timeout">Connection timed out. Check the network and retry.</string>
+    <string name="sources_file_failed">Cannot open file. Make sure a file picker is installed and choose a readable playlist.</string>
+    <string name="sources_invalid_epg">Use valid HTTP(S) URLs for XMLTV and Referer. Headers must not contain line breaks.</string>
+</resources>

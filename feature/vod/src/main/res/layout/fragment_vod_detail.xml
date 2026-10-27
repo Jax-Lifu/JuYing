@@ -1,0 +1,28 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="?attr/jy_background" android:paddingHorizontal="@dimen/jy_padding">
+ <androidx.appcompat.widget.AppCompatButton android:id="@+id/back" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginVertical="8dp" android:drawableStart="@drawable/ic_back" android:text="@string/ui_back"/>
+ <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="3" android:fillViewport="false">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="top">
+    <ImageView android:id="@+id/cover" android:layout_width="@dimen/jy_detail_cover_width" android:layout_height="@dimen/jy_detail_cover_height" android:layout_marginEnd="20dp" android:scaleType="centerCrop" android:importantForAccessibility="no"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+     <TextView android:id="@+id/title" style="@style/JyTitle" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+     <TextView android:id="@+id/metadata" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:lineSpacingExtra="4dp"/>
+     <TextView android:id="@+id/description" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:maxLines="4" android:ellipsize="end" android:lineSpacingExtra="6dp" android:textColor="?attr/jy_on_surface"/>
+     <androidx.appcompat.widget.AppCompatButton android:id="@+id/description_more" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="@string/vod_description_more" android:drawableEnd="@drawable/ic_expand"/>
+    </LinearLayout>
+   </LinearLayout>
+  </LinearLayout>
+ </ScrollView>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:gravity="center_vertical">
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/play" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginEnd="12dp" android:drawableStart="@drawable/ic_play" android:text="@string/ui_play"/>
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/favorite" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:drawableStart="@drawable/ic_favorite" android:text="@string/ui_favorite"/>
+ </LinearLayout>
+ <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:indeterminate="true"/>
+ <TextView android:id="@+id/status" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:accessibilityLiveRegion="polite"/>
+ <androidx.appcompat.widget.AppCompatButton android:id="@+id/retry" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_retry" android:drawableStart="@drawable/ic_play"/>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical">
+  <TextView android:id="@+id/episodeLabel" style="@style/JySection" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/vod_episodes"/>
+  <androidx.appcompat.widget.AppCompatButton android:id="@+id/line" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/content_select_line" android:drawableEnd="@drawable/ic_expand" android:maxLines="2" android:ellipsize="end"/>
+ </LinearLayout>
+ <androidx.recyclerview.widget.RecyclerView android:id="@+id/episodes" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="2" android:clipToPadding="false"/>
+</LinearLayout>
