@@ -48,7 +48,9 @@ class AppNavigator @Inject constructor(private val sources: SourceRepository, pr
                 return@launch
             }
             val choices = sources.capabilities(config).filter { it != SourceCapability.SEARCH }
-            val selected = capability?.takeIf { it in choices } ?: memory.lastCapability(sourceId)?.takeIf { it in choices }
+            // 当前页面决定浏览能力；首页等无上下文入口让用户选择，避免上次直播记录锁住点播入口。
+            val selected = capability?.takeIf { it in choices }
+                ?: (activity as? MainActivity)?.currentSourceCapability?.takeIf { it in choices }
                 ?: choices.singleOrNull()
             fun route(cap: SourceCapability) {
                 memory.select(sourceId, cap)

@@ -84,14 +84,15 @@ class MainActivity : JuyingActivity(), SourcePickerHost {
         val page = host.childFragmentManager.primaryNavigationFragment
         if (page is NavigationGuard) page.confirmLeave(proceed) else proceed()
     }
-    private fun updateHeader() {
-        val capability = when (host.navController.currentDestination?.id) {
+    internal val currentSourceCapability: SourceCapability?
+        get() = when (host.navController.currentDestination?.id) {
             R.id.nav_live -> SourceCapability.LIVE
             R.id.nav_vod, R.id.vod_detail -> SourceCapability.VOD
             R.id.nav_browse -> SourceCapability.BROWSE
             else -> null
         }
-        currentSource = capability?.let(memory::selected)
+    private fun updateHeader() {
+        currentSource = currentSourceCapability?.let(memory::selected)
         val selected = currentSource
         lifecycleScope.launch {
             val source = selected?.let { sources.get(it) }

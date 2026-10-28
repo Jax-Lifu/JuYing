@@ -1,0 +1,14 @@
+[project]
+name = "juying-spider-runtime"
+version = "0.1.0"
+description = "聚映 (JuYing) TVBox 脚本运行时与本地开发调试环境"
+readme = "README.md"
+requires-python = "~=3.11.0"
+dependencies = [
+    "requests==2.32.5",
+    "beautifulsoup4==4.14.3",
+    "lxml==5.3.0",
+]
+
+[tool.uv]
+managed = true

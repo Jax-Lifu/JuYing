@@ -1,5 +1,7 @@
 # FongMi/TV 兼容性对照
 
+本文是固定上游提交的历史兼容性审查快照；当前能力以源码、测试和最新验证记录为准。
+
 审查日期：2026-10-26。上游固定为 [FongMi/TV aa30eb047c749fe5a96dd47b94947cda2421354f](https://github.com/FongMi/TV/commit/aa30eb047c749fe5a96dd47b94947cda2421354f)，提交日期 2026-10-25。本文记录修复前的 JuYing 差异，后续实现是否通过以测试结果为准。
 
 ## 结论
@@ -31,13 +33,13 @@ FongMi 在创建站点实例之前调用可选的 `com.github.catvod.spider.Init
 
 | JAR | 静态观察 | 结论边界 |
 | --- | --- | --- |
-| 肥猫 | 配置 MD5 匹配；引用宿主 `Spider.safeDns(): okhttp3.Dns`、`SpiderDebug.log(String)`、`log(Throwable)`；带 Init | 当前宿主缺这些方法/类；debug MainActivity 引用不代表正常路径会执行 |
+| 肥猫 | 配置 MD5 匹配；引用宿主 `Spider.safeDns(): okhttp3.Dns`、`SpiderDebug.log(String)`、`log(Throwable)`；带 Init | 当前宿主已提供这些签名并有原创运行时测试；本次静态 JAR 检查仍不等于该站点完整运行 |
 | 摸鱼儿 | 配置 MD5 匹配；引用 SpiderDebug；包含 FishGuard 的 armv7/arm64 so | 补宿主接口不能证明加固代码可运行 |
 | 短剧 | 无配置 MD5；引用旧 `Spider.initApi(SpiderApi)`、SpiderApi 与大量未随包定义的 xbpq 类型 | 当前固定版 FongMi Spider 也无此旧接口；不能靠无行为 stub 宣称兼容 |
 
 精确引用签名在临时证据 `build/tvbox-audit/dex-hosts.json`；检查脚本为 `build/fongmi-reference/inspect_dex.py`。该静态审查阶段没有执行 JAR；后续肥猫实机结果另记。方法引用证明链接需求，不能证明实际调用路径、安全性或完整功能。MD5 只核对配置声明与下载内容一致，不证明发布者可信。
 
-已证实且最小的宿主 ABI 是 `public static Dns safeDns()` 与 `public static void SpiderDebug.log(String/Throwable)`。上游 safeDns 委托 OkDns；没有 DoH/hosts 配置时，OkDns.lookup 最终就是 Dns.SYSTEM。现有项目可保留系统 DNS 并实现相同签名，不必新增 DNS 依赖。第三方 log 可能含凭据，保留 ABI 时抑制正文或仅记录异常类，不能照搬上游明文日志。[SpiderDebug.java](https://github.com/FongMi/TV/blob/aa30eb047c749fe5a96dd47b94947cda2421354f/catvod/src/main/java/com/github/catvod/crawler/SpiderDebug.java)、[OkDns.java](https://github.com/FongMi/TV/blob/aa30eb047c749fe5a96dd47b94947cda2421354f/catvod/src/main/java/com/github/catvod/net/OkDns.java)。
+已证实且最小的宿主 ABI 是 `public static Dns safeDns()` 与 `public static void SpiderDebug.log(String/Throwable)`。上游 safeDns 委托 OkDns；没有 DoH/hosts 配置时，OkDns.lookup 最终就是 Dns.SYSTEM。当前项目提供相同签名并沿用系统 DNS，不新增 DNS 依赖。第三方 log 可能含凭据，保留 ABI 时抑制正文或仅记录异常类，不能照搬上游明文日志。[SpiderDebug.java](https://github.com/FongMi/TV/blob/aa30eb047c749fe5a96dd47b94947cda2421354f/catvod/src/main/java/com/github/catvod/crawler/SpiderDebug.java)、[OkDns.java](https://github.com/FongMi/TV/blob/aa30eb047c749fe5a96dd47b94947cda2421354f/catvod/src/main/java/com/github/catvod/net/OkDns.java)。
 
 不要整拷上游 OkHttp 网络工厂：固定版本包含恒真的 hostnameVerifier 和 trustAllCertificates。移植协议所需行为时继续保留本工程的 TLS 验证。[OkHttp.java](https://github.com/FongMi/TV/blob/aa30eb047c749fe5a96dd47b94947cda2421354f/catvod/src/main/java/com/github/catvod/net/OkHttp.java#L213)。
 

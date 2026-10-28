@@ -16,3 +16,6 @@ build/
 *.aab
 *.jks
 *.keystore
+.impeccable/
+design/
+/.venv/

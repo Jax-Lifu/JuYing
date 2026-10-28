@@ -31,3 +31,4 @@
 -dontwarn org.ietf.jgss.**
 -dontwarn org.bouncycastle.**
 -dontwarn kotlin.reflect.jvm.internal.**
+-dontwarn java.rmi.**
