@@ -43,14 +43,21 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.CountDownLatch
 import javax.inject.Provider
 
-/** Official-network opt-ins: cctvNativeLive=true for VOD; cctvLiveNative=true for live channels. */
+/** Official-network opt-ins: cctvNativeLive=true for VOD; cctvLiveNative=true for live channels.
+ * Live zap diagnostics: cctvZapRounds=N repeats the route; cctvSkipLongHold=true skips its initial 80-second hold.
+ */
 @RunWith(AndroidJUnit4::class)
 class CctvNativeHdTest {
     @Test fun officialLiveUsesNativeSurfaceRefreshesAndZapsChannels() = runBlocking {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("cctvLiveNative") == "true")
+        val args = InstrumentationRegistry.getArguments()
+        assumeTrue(args.getString("cctvLiveNative") == "true")
+        val rounds = args.getString("cctvZapRounds")?.toInt() ?: 1
+        require(rounds > 0) { "cctvZapRounds must be positive" }
+        val skipLongHold = args.getString("cctvSkipLongHold") == "true"
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val app = instrumentation.targetContext.applicationContext
         val request = PlayRequest(PlayKind.LIVE, BUILTIN_CCTV_ID, "cctv1", "CCTV-1 综合")
+        val initialRequestAt = SystemClock.elapsedRealtime()
         ActivityScenario.launch<PlayerActivity>(PlayerActivity.intent(app, request)).use { scenario ->
             lateinit var model: PlayerViewModel
             lateinit var surface: SurfaceView
@@ -58,22 +65,29 @@ class CctvNativeHdTest {
                 model = androidx.lifecycle.ViewModelProvider(it).get(PlayerViewModel::class.java)
                 surface = it.findViewById(com.flytech.juying.feature.player.R.id.surface)
             }
-            suspend fun playing(channel: String) = withContext(Dispatchers.Main) {
+            suspend fun playing(channel: String, requestedAt: Long = SystemClock.elapsedRealtime()) = withContext(Dispatchers.Main) {
+                var readyMs: Long? = null
+                var confirmedMs: Long? = null
+                fun ready() = model.currentRequest?.ref == channel && model.ui.value.pendingTitle == null &&
+                    model.ui.value.playback.isPlaying && model.ui.value.playback.videoHeight >= 720
                 try {
-                    withTimeout(60_000) {
-                        while (model.currentRequest?.ref != channel || !model.ui.value.playback.isPlaying || model.positionMs() < 3_000 ||
-                            model.ui.value.playback.videoHeight < 720) {
+                    withTimeout(LIVE_READY_TIMEOUT_MS) {
+                        while (!ready()) {
                             check(model.ui.value.error == null) { "央视直播播放失败" }
                             check(!model.ui.value.switchError) { "央视直播切台解析失败" }
                             check(model.ui.value.webPage == null) { "央视直播不应打开网页播放器" }
-                            delay(200)
+                            delay(LIVE_SAMPLE_INTERVAL_MS)
                         }
                     }
+                    readyMs = SystemClock.elapsedRealtime() - requestedAt
+                    awaitLiveProgress(model, ::ready)
+                    confirmedMs = SystemClock.elapsedRealtime() - requestedAt
                 } finally {
                     val state = model.ui.value
                     instrumentation.sendStatus(0, Bundle().apply {
                         putString("stream", "CCTV_LIVE_STATE target=$channel current=${model.currentRequest?.ref} " +
-                            "pending=${state.pendingTitle != null} switchError=${state.switchError} " +
+                            "elapsedMs=${SystemClock.elapsedRealtime() - requestedAt} readyMs=$readyMs confirmedMs=$confirmedMs " +
+                            "pending=${state.pendingTitle != null} switchError=${state.switchError} error=${state.error != null} " +
                             "playing=${state.playback.isPlaying} buffering=${state.playback.isBuffering} " +
                             "width=${state.playback.videoWidth} height=${state.playback.videoHeight} position=${model.positionMs()}\n")
                     })
@@ -89,26 +103,38 @@ class CctvNativeHdTest {
                         "height=${model.ui.value.playback.videoHeight} position=${model.positionMs()}\n")
                 })
             }
-            playing("cctv1")
+            playing("cctv1", initialRequestAt)
             assertRenderedFrame(surface)
             // Stay beyond the initial playlist window so stale/one-shot manifests cannot pass.
-            repeat(4) { delay(20_000); playing("cctv1"); assertRenderedFrame(surface) }
-            scenario.onActivity {
-                if (!it.findViewById<View>(com.flytech.juying.feature.player.R.id.controls).isShown)
-                    it.findViewById<View>(com.flytech.juying.feature.player.R.id.video_stage).performClick()
-                assertFalse(it.findViewById<View>(com.flytech.juying.feature.player.R.id.web_container).isShown)
-                val next = it.findViewById<View>(com.flytech.juying.feature.player.R.id.next)
-                assertTrue(next.isShown && next.isEnabled)
-                assertTrue(next.performClick())
+            if (!skipLongHold) repeat(4) { delay(20_000); playing("cctv1"); assertRenderedFrame(surface) }
+            repeat(rounds) { round ->
+                instrumentation.sendStatus(0, Bundle().apply { putString("stream", "CCTV_LIVE_ROUND round=${round + 1} total=$rounds\n") })
+                if (round > 0) {
+                    val requestedAt = SystemClock.elapsedRealtime()
+                    withContext(Dispatchers.Main) { model.zap(-13) }
+                    playing("cctv1", requestedAt)
+                    assertRenderedFrame(surface)
+                }
+                var requestedAt = SystemClock.elapsedRealtime()
+                scenario.onActivity {
+                    if (!it.findViewById<View>(com.flytech.juying.feature.player.R.id.controls).isShown)
+                        it.findViewById<View>(com.flytech.juying.feature.player.R.id.video_stage).performClick()
+                    assertFalse(it.findViewById<View>(com.flytech.juying.feature.player.R.id.web_container).isShown)
+                    val next = it.findViewById<View>(com.flytech.juying.feature.player.R.id.next)
+                    assertTrue(next.isShown && next.isEnabled)
+                    assertTrue(next.performClick())
+                }
+                playing("cctv2", requestedAt)
+                assertRenderedFrame(surface)
+                requestedAt = SystemClock.elapsedRealtime()
+                withContext(Dispatchers.Main) { model.zap(3) }
+                playing("cctv5", requestedAt)
+                assertRenderedFrame(surface)
+                requestedAt = SystemClock.elapsedRealtime()
+                withContext(Dispatchers.Main) { model.zap(9) }
+                playing("cctv13", requestedAt)
+                assertRenderedFrame(surface)
             }
-            playing("cctv2")
-            assertRenderedFrame(surface)
-            withContext(Dispatchers.Main) { model.zap(3) }
-            playing("cctv5")
-            assertRenderedFrame(surface)
-            withContext(Dispatchers.Main) { model.zap(9) }
-            playing("cctv13")
-            assertRenderedFrame(surface)
         }
     }
 
@@ -128,7 +154,7 @@ class CctvNativeHdTest {
             }
             data class Quality(val id: String, val label: String, val width: Int, val height: Int)
             val qualities = withContext(Dispatchers.Main) {
-                withTimeout(60_000) {
+                withTimeout(LIVE_READY_TIMEOUT_MS) {
                     while (model.tracks(PlayerTrackType.VIDEO).size < 2) {
                         check(model.ui.value.error == null) { "央视直播清晰度加载失败" }
                         delay(100)
@@ -144,40 +170,25 @@ class CctvNativeHdTest {
             assertTrue("央视直播应提供不同分辨率", high.height > low.height)
             assertTrue("默认最高档应至少为 720p", high.height >= 720)
             withContext(Dispatchers.Main) {
-                withTimeout(60_000) { while (model.ui.value.playback.videoHeight == 0) delay(100) }
+                withTimeout(LIVE_READY_TIMEOUT_MS) { while (model.ui.value.playback.videoHeight == 0) delay(100) }
                 assertEquals("首次解码应使用最高档", high.height, model.ui.value.playback.videoHeight)
                 assertEquals(high.width, model.ui.value.playback.videoWidth)
             }
             suspend fun playingQuality(stage: String, quality: Quality? = null) {
                 withContext(Dispatchers.Main) {
-                    withTimeout(60_000) {
-                        while (!model.ui.value.playback.isPlaying || model.ui.value.playback.videoHeight == 0 ||
-                            (quality != null && (model.ui.value.playback.videoWidth != quality.width ||
-                                model.ui.value.playback.videoHeight != quality.height))) {
+                    fun ready() = model.currentRequest?.ref == request.ref && model.ui.value.pendingTitle == null &&
+                        model.ui.value.playback.isPlaying && model.ui.value.playback.videoHeight > 0 &&
+                        (quality == null || model.ui.value.playback.videoWidth == quality.width &&
+                            model.ui.value.playback.videoHeight == quality.height)
+                    withTimeout(LIVE_READY_TIMEOUT_MS) {
+                        while (!ready()) {
                             check(model.ui.value.error == null) { "央视直播清晰度切换失败" }
+                            check(!model.ui.value.switchError) { "央视直播切台解析失败" }
                             check(model.ui.value.webPage == null) { "央视直播不应打开网页播放器" }
                             delay(100)
                         }
                     }
-                    var previousPosition = model.positionMs()
-                    var previousTime = SystemClock.elapsedRealtime()
-                    var advancedMs = 0L
-                    var advancingSamples = 0
-                    // Live playlist refreshes move the window origin; require steady progress between resets.
-                    withTimeout(10_000) {
-                        while (advancedMs < 1_000 || advancingSamples < 5) {
-                            delay(200)
-                            val position = model.positionMs()
-                            val now = SystemClock.elapsedRealtime()
-                            val delta = position - previousPosition
-                            val advancing = position >= 0 && delta in 1..((now - previousTime) * 2 + 100) &&
-                                model.ui.value.playback.isPlaying
-                            advancedMs = if (advancing) advancedMs + delta else 0L
-                            advancingSamples = if (advancing) advancingSamples + 1 else 0
-                            previousPosition = position
-                            previousTime = now
-                        }
-                    }
+                    awaitLiveProgress(model, ::ready)
                     assertTrue(surface.isShown)
                     assertTrue(model.ui.value.isLive)
                     assertNull(model.ui.value.error)
@@ -348,6 +359,31 @@ class CctvNativeHdTest {
         }
     }
 
+    /** Live playlist refreshes move the window origin; verify continuous progress between resets. */
+    private suspend fun awaitLiveProgress(model: PlayerViewModel, ready: () -> Boolean) {
+        var previousPosition = model.positionMs()
+        var previousTime = SystemClock.elapsedRealtime()
+        var advancedMs = 0L
+        var advancingSamples = 0
+        withTimeout(LIVE_PROGRESS_TIMEOUT_MS) {
+            while (advancedMs < LIVE_PROGRESS_REQUIRED_MS || advancingSamples < LIVE_PROGRESS_REQUIRED_SAMPLES) {
+                delay(LIVE_SAMPLE_INTERVAL_MS)
+                check(model.ui.value.error == null) { "央视直播播放失败" }
+                check(!model.ui.value.switchError) { "央视直播切台解析失败" }
+                check(model.ui.value.webPage == null) { "央视直播不应打开网页播放器" }
+                val position = model.positionMs()
+                val now = SystemClock.elapsedRealtime()
+                val delta = position - previousPosition
+                val advancing = ready() && position >= 0 &&
+                    delta in 1..((now - previousTime) * 2 + LIVE_PROGRESS_JITTER_MS)
+                advancedMs = if (advancing) advancedMs + delta else 0L
+                advancingSamples = if (advancing) advancingSamples + 1 else 0
+                previousPosition = position
+                previousTime = now
+            }
+        }
+    }
+
     private fun assertRenderedFrame(surface: SurfaceView) {
         val bitmap = Bitmap.createBitmap(96, 54, Bitmap.Config.ARGB_8888)
         val copied = CountDownLatch(1)
@@ -360,5 +396,14 @@ class CctvNativeHdTest {
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
             assertTrue("SurfaceView 未渲染有效画面", pixels.toSet().size > 16)
         } finally { bitmap.recycle() }
+    }
+
+    private companion object {
+        const val LIVE_READY_TIMEOUT_MS = 60_000L
+        const val LIVE_PROGRESS_TIMEOUT_MS = 10_000L
+        const val LIVE_SAMPLE_INTERVAL_MS = 200L
+        const val LIVE_PROGRESS_REQUIRED_MS = 1_000L
+        const val LIVE_PROGRESS_REQUIRED_SAMPLES = 5
+        const val LIVE_PROGRESS_JITTER_MS = 100L
     }
 }

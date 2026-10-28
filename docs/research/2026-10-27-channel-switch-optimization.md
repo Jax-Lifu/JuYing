@@ -37,3 +37,28 @@ Debug APK：`JuYing_debug_0.1.0_20261027.apk`，78,059,485 bytes。SHA-256：`5d
 标准与需求两路独立审查发现的首台按键、查询取消提示、空列表恢复问题已修复并补测试；最终限定本轮变更复核未发现阻断项。Jev 实际调用模型为 `jev-1.14.0`，完成两轮辅助判断；它对“待切基点上的正反抵消”仍给出不确定值（0.46），因此未把概率当作通过结论，该路径由确定性单测和人工状态推演确认。
 
 未测量换台首帧 P95/P99、帧率或 PSS 的前后差值，不宣称具体毫秒提升；未进行物理遥控器或声音听验，未复测 qytech6666、手机和平板。第三方网络、解析器和解码器速度仍影响首帧时间。
+
+## 2026-10-28：央视超时复现与测试判据修复
+
+本轮在同一 cayin（Android 14 / API 34）、同一主 APK 上，确认了直播测试的超时误报。主 APK SHA-256 仍为上文的 `5dc69bae6499292e3f8e99db60e8c32f36c11e9ab64462fb0ad2709045fc31c3`；未修改或重装播放器产品代码。
+
+旧判据要求 `positionMs >= 3000`。Media3 的直播位置相对滑动窗口起点，窗口刷新时可以回退，并非累计播放时长，见 [Media3 直播位置说明](https://developer.android.com/media/media3/exoplayer/live-streaming#detecting_and_monitoring_live_playbacks)。本机同期抓到的官方播放列表为 3 段、每段 4 秒，刷新时窗口前移 4 秒；该主机采样仅辅助解释窗口行为，不等同设备失败时的精确播放列表。
+
+干净复现中，目标始终为 CCTV-1，无待切、解析错误或播放错误；约 4.915 秒首次取得有效 Surface 画面，累计采到 52 次有效画面、51 次画面变化和 14 次位置回退，旧门槛仍在约 60 秒超时。这足以确认本轮存在测试误报。此前一轮受未预期频道变化影响，另一轮 USB 断开，均不用于完整验收；10 月 27 日首次 CCTV-2 超时缺少同等连续观测，不能追溯断定完全同因。
+
+修复限于 [CctvNativeHdTest](../../app/src/androidTest/kotlin/com/flytech/juying/CctvNativeHdTest.kt)：复用清晰度测试已有的连续进展判断，每 200ms 采样，要求连续至少 5 次合理正增量、累计至少 1000ms；位置回退、停滞、不合理跳跃或目标状态不符时重新计数。保留目标频道、无待切/错误/网页回退、高清、音轨选择、原生线路、Surface 有效画面和默认 80 秒长播检查。增加 `cctvZapRounds` 以重复切台路径；`cctvSkipLongHold=true` 仅供显式诊断快跑，不能代替完整验收。
+
+| 本轮验证 | 结果 |
+| --- | --- |
+| 测试 APK 构建 | `:app:assembleDebugAndroidTest` 通过；测试 APK SHA-256：`855376b7b186591fabca327fa0a9ec0ea449bf6463deb499f323d23e5b1667de`。 |
+| 五轮连续切台与长播 | CCTV-1 → 2 → 5 → 13，下一轮返回 CCTV-1，共 19 次换台，包含默认 80 秒长播；24 次状态/画面检查全部通过，耗时 187.120 秒。各次均为 1280×720、选中音轨且 Surface 有效；通过时的位置均小于 3000ms。 |
+| 共享判据回归 | 默认 720p → 手选 360p / 480p / 576p → 手选 720p → 自动；6 阶段进展和 Surface 检查通过，耗时 25.097 秒。 |
+| 审查 | Standards / Spec 两路独立审查均无阻断项；Jev（实际 `jev-1.14.0`）支持先采样、再做测试局部修复，未把概率作为真机通过依据。 |
+
+完整切台命令（不传跳过长播参数）：
+
+```powershell
+adb -s 7c9349cc5027c4c7 shell am instrument -w -r -e class 'com.flytech.juying.CctvNativeHdTest#officialLiveUsesNativeSurfaceRefreshesAndZapsChannels' -e cctvLiveNative true -e cctvZapRounds 5 com.flytech.juying.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+本地证据位于被忽略的 `build/cctv-switch-timeout/`：`probe-original-gate-3.log`、`fixed-5-rounds-longhold.log`、`fixed-quality.log` 与两路审查报告。`readyMs` 表示目标状态就绪，`confirmedMs` 表示通过进展检查，均不是精确首帧耗时；没有据此宣称换台性能提升。未重跑无关全量单测，未进行物理遥控器、声音听验或其他设备复测；有限轮次不能排除未来网络或解码器问题。
