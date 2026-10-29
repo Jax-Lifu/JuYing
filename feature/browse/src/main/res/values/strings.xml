@@ -37,4 +37,6 @@
     <string name="nas_access_denied">无法访问。请检查账号、密码和共享权限。</string>
     <string name="nas_connection_failed">无法连接。请检查设备地址、网络或共享名后重试。</string>
     <string name="nas_invalid_share">请输入有效的共享名。</string>
+    <string name="nas_connected_tag">已连接</string>
+    <string name="nas_connected_hint">已连接 · 点击浏览文件 · %1$s</string>
 </resources>

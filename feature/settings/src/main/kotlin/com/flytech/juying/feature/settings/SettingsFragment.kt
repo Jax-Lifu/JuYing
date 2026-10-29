@@ -22,6 +22,7 @@ import com.flytech.juying.core.ui.ViewBindingFragment
 import com.flytech.juying.feature.settings.databinding.FragmentSettingsBinding
 import dagger.hilt.android.AndroidEntryPoint
 
+/** 播放源管理与系统设置 Fragment。 */
 @AndroidEntryPoint
 class SettingsFragment : ViewBindingFragment<FragmentSettingsBinding>(FragmentSettingsBinding::inflate), NavigationGuard {
     private val vm: SettingsViewModel by viewModels()
@@ -58,6 +59,7 @@ class SettingsFragment : ViewBindingFragment<FragmentSettingsBinding>(FragmentSe
         }
         val back = object : OnBackPressedCallback(false) { override fun handleOnBackPressed() { confirmLeave { vm.cancel() } } }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
+        binding.back.setOnClickListener { confirmLeave { findNavController().popBackStack() } }
         binding.sources.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = sources

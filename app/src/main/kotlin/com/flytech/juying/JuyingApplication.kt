@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import timber.log.Timber
 import javax.inject.Inject
 
+/** 聚映全局 Application 宿主，按需懒加载并初始化轻量基础组件。 */
 @HiltAndroidApp
 class JuyingApplication : Application(), ImageLoaderFactory {
 

@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
+/** 全屏播放器 UI 状态实体。 */
 data class PlayerUiState(
     val title: String = "",
     val isLive: Boolean = false,
@@ -52,6 +53,14 @@ data class PlayerUiState(
     val episodeError: Boolean = false,
 )
 
+/**
+ * 全屏播放器业务逻辑 ViewModel。
+ *
+ * **What**: 管理播放状态机、连续切台请求合并与旧解析隔离、多线路自动故障转移、分集切换及断点续播进度保存。
+ *
+ * **Why**: 深度隔离播放内核生命周期与 UI 视图；在低配 TV 盒子上，当遥控器连按快速换台时，
+ * 累计正反偏移并即时取消未完成的旧网络/签名请求，确保仅最后一次目标生效，防止界面闪烁或音频串流。
+ */
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val getPlayItem: GetPlayItemUseCase,

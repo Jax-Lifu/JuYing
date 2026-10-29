@@ -7,13 +7,16 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 
+/** 文本选项选择数据实体。 */
 data class TextChoice(val id: String, val label: String, val selected: Boolean = false)
 
+/** 文本选项选择列表 RecyclerView 适配器，用于线路、音轨、字幕等单选菜单。 */
 class TextChoiceAdapter(private val onClick: (TextChoice) -> Unit) :
     ListAdapter<TextChoice, TextChoiceAdapter.Holder>(object : DiffUtil.ItemCallback<TextChoice>() {
         override fun areItemsTheSame(a: TextChoice, b: TextChoice) = a.id == b.id
         override fun areContentsTheSame(a: TextChoice, b: TextChoice) = a == b
     }) {
+    /** 列表项 ViewHolder 缓存载体。 */
     class Holder(val text: TextView) : RecyclerView.ViewHolder(text)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = Holder(
         LayoutInflater.from(parent.context).inflate(R.layout.item_text_choice, parent, false) as TextView)

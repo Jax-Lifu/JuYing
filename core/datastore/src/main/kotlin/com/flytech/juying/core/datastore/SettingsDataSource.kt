@@ -18,6 +18,7 @@ import javax.inject.Singleton
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+/** 基于 Proto/Preferences DataStore 的应用设置持久化底层组件。 */
 @Singleton
 class SettingsDataSource @Inject constructor(@ApplicationContext private val context: Context) {
 

@@ -12,6 +12,7 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.Multibinds
 import androidx.media3.datasource.DataSource
 
+/** Media3 播放引擎工厂与 DataSource 的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class Media3Module {

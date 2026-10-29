@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 点播分类与列表页面 UI 状态实体。 */
 data class VodUiState(
     val sources: List<SourceConfig> = emptyList(), val source: SourceConfig? = null,
     val sites: List<SubSource> = emptyList(), val site: SubSource? = null,
@@ -24,6 +25,7 @@ data class VodUiState(
     val loading: Boolean = false, val failed: Boolean = false, val hasMore: Boolean = false,
 )
 
+/** 点播瀑布流 ViewModel，支持视口预取与多级分类加载。 */
 @HiltViewModel
 class VodViewModel @Inject constructor(sources: SourceRepository, private val vod: VodRepository) : ViewModel() {
     private val state = MutableStateFlow(VodUiState())

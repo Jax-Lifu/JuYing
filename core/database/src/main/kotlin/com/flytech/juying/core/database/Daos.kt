@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** 数据源持久化数据访问对象（Room DAO）。 */
 @Dao
 interface SourceDao {
     @Query("SELECT * FROM sources ORDER BY sortOrder, name")
@@ -29,6 +30,7 @@ interface SourceDao {
     suspend fun delete(id: String)
 }
 
+/** 播放历史持久化数据访问对象（Room DAO）。 */
 @Dao
 interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY updatedAt DESC LIMIT :limit")
@@ -47,6 +49,7 @@ interface HistoryDao {
     suspend fun clear()
 }
 
+/** 用户收藏持久化数据访问对象（Room DAO）。 */
 @Dao
 interface FavoriteDao {
     @Query("SELECT * FROM favorites ORDER BY createdAt DESC")

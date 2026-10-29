@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.flytech.juying.core.designsystem.R as D
 
+/** 全屏/浮层数据源切换选择弹窗，支持按能力筛选、状态显示与无感快速切源。 */
 @AndroidEntryPoint
 class SourcePickerDialog : BottomSheetDialogFragment() {
     @Inject lateinit var sources: SourceRepository
@@ -118,8 +119,20 @@ class SourcePickerDialog : BottomSheetDialogFragment() {
                 SourceCapability.VOD -> D.string.ui_vod
                 else -> D.string.ui_files
             }) }.ifEmpty { getString(D.string.ui_unsupported) }
+            val icon = when (config.type) {
+                SourceType.CCTV -> D.drawable.ic_tv_tower
+                SourceType.LOCAL -> D.drawable.ic_storage
+                SourceType.SMB -> D.drawable.ic_server
+                SourceType.TVBOX -> D.drawable.ic_cloud_stream
+                SourceType.IPTV -> D.drawable.ic_live
+                else -> when {
+                    SourceCapability.LIVE in caps -> D.drawable.ic_live
+                    SourceCapability.VOD in caps -> D.drawable.ic_vod
+                    else -> D.drawable.ic_files
+                }
+            }
             MediaRow(config.id, config.name, listOf(caption, config.type.name, memory.get(config.id, "location"))
-                .filter { it.isNotEmpty() }.joinToString(" · "), D.drawable.ic_vod,
+                .filter { it.isNotEmpty() }.joinToString(" · "), icon,
                 selected = config.id == arguments?.getString("current"))
         }
         val filtered = items.filter { query.isBlank() || "${it.title} ${it.subtitle}".contains(query, true) }

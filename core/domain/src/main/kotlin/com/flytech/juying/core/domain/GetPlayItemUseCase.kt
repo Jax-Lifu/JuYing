@@ -10,7 +10,15 @@ import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
 import javax.inject.Inject
 
-/** 把页面间传递的轻量 PlayRequest 解析成播放器可直接消费的 PlayItem（点播/本地视频自动恢复上次续播进度）。 */
+/**
+ * 跨业务源播放项解析用例。
+ *
+ * **What**: 将页面间传递的轻量 [PlayRequest] 解析为播放器可直接消费的标准化 [PlayItem]，
+ * 并在点播与本地视频播放前自动匹配历史记录实现断点续播。
+ *
+ * **Why**: 聚合直播（[LiveRepository]）、点播（[VodRepository]）与网络存储/本地文件（[BrowseRepository]）
+ * 的统一播放入口；对大于 5 秒且未播放完（<95%）的内容智能填充起始时间戳，无需各页面重复编写续播逻辑。
+ */
 class GetPlayItemUseCase @Inject constructor(
     private val live: LiveRepository,
     private val vod: VodRepository,

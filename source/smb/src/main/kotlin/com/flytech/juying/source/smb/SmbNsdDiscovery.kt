@@ -49,7 +49,11 @@ internal fun discoverSmbServices(context: Context): Flow<NetworkStorageDevice> =
             if (!address.isSiteLocalAddress && !address.isLinkLocalAddress) continue
             val host = address.hostAddress ?: continue
             if (resolved.port !in 1..65535) continue
-            trySend(NetworkStorageDevice(SourceType.SMB, resolved.serviceName.orEmpty().ifBlank { host }, host, resolved.port))
+            val serviceName = resolved.serviceName.orEmpty().ifBlank {
+                address.hostName.orEmpty().ifBlank { host }
+            }
+            val displayName = if (!SmbHostResolver.isIpAddress(serviceName)) serviceName else SmbHostResolver.resolve(host)
+            trySend(NetworkStorageDevice(SourceType.SMB, displayName, host, resolved.port))
         }
     }
     val discovery = object : NsdManager.DiscoveryListener {

@@ -115,4 +115,25 @@ class NasViewModelTest {
             assertTrue(vm.ui.value.shares.isEmpty())
         } finally { store.clear() }
     }
+
+    @Test fun ipv4AndIpv6WithSameHostnameAreDeduplicatedPreferringIpv4() = runTest {
+        val ipv6Device = NetworkStorageDevice(SourceType.SMB, "MyNAS", "fe80::1", 445)
+        val ipv4Device = NetworkStorageDevice(SourceType.SMB, "MyNAS", "192.168.1.100", 445)
+        val repository = object : SourceRepository by FakeSourceRepository() {
+            override fun discoverNetworkStorage() = flow {
+                emit(ipv6Device)
+                emit(ipv4Device)
+                awaitCancellation()
+            }
+        }
+        val vm = NasViewModel(repository)
+        val store = ViewModelStore().also { it.put("nas", vm) }
+        try {
+            vm.scan()
+            assertEquals(1, vm.ui.value.devices.size)
+            val single = vm.ui.value.devices.single()
+            assertEquals("MyNAS", single.name)
+            assertEquals("192.168.1.100", single.host)
+        } finally { store.clear() }
+    }
 }

@@ -32,6 +32,7 @@ object Appearance {
     }
 }
 
+/** 三端主题与无障碍支持基类 Activity。 */
 abstract class JuyingActivity : AppCompatActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(Appearance.localize(newBase))
     override fun onCreate(savedInstanceState: Bundle?) {

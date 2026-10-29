@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+/** QuickJS 爬虫脚本沙箱执行环境。 */
 internal class JavaScriptRuntime private constructor(private val engine: QuickJs) : SpiderRuntime {
     override suspend fun call(method: SpiderMethod, args: JsonArray): String = engine.evaluate(
         "await __invokeSpider(${JsonPrimitive(method.function)},${JsonPrimitive(method.legacyFunction)},$args)",

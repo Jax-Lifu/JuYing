@@ -2,6 +2,7 @@
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:padding="@dimen/jy_padding" android:background="?attr/jy_background">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/back" android:drawableStart="@drawable/ic_back" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="48dp" android:text="@string/ui_back" android:layout_marginEnd="12dp"/>
         <TextView style="@style/JyTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/sources_title"/>
         <androidx.appcompat.widget.AppCompatButton android:id="@+id/add" android:drawableStart="@drawable/ic_files" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sources_add"/>
     </LinearLayout>
@@ -9,17 +10,46 @@
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/sources" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
     <ScrollView android:id="@+id/editor" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/description" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/name" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:inputType="text" android:singleLine="true" android:hint="@string/sources_name" android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/url" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:inputType="textUri" android:singleLine="true" android:hint="@string/sources_url" android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
-            <androidx.appcompat.widget.AppCompatButton android:id="@+id/import_file" android:drawableStart="@drawable/ic_files" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sources_import_file"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/epg_url" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:inputType="textUri" android:singleLine="true" android:hint="@string/sources_epg_url"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/user_agent" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:inputType="text" android:singleLine="true" android:hint="@string/sources_user_agent"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/referer" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:inputType="textUri" android:singleLine="true" android:hint="@string/sources_referer"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/username" android:layout_width="match_parent" android:layout_height="56dp" android:inputType="text" android:singleLine="true" android:hint="@string/ui_username"/>
-            <EditText android:imeOptions="flagNoFullscreen" android:id="@+id/password" android:layout_width="match_parent" android:layout_height="56dp" android:inputType="textPassword" android:singleLine="true" android:hint="@string/ui_password" android:importantForAutofill="no" android:saveEnabled="false"/>
+            <TextView android:id="@+id/description" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <EditText android:id="@+id/name" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="text" android:maxLines="1" android:hint="@string/sources_name" android:contentDescription="@string/sources_name"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/url" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="textUri" android:maxLines="1" android:hint="@string/sources_url" android:contentDescription="@string/sources_url"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/import_file" android:drawableStart="@drawable/ic_files" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:text="@string/sources_import_file"/>
+            <EditText android:id="@+id/epg_url" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="textUri" android:maxLines="1" android:hint="@string/sources_epg_url" android:contentDescription="@string/sources_epg_url"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/user_agent" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="text" android:maxLines="1" android:hint="@string/sources_user_agent" android:contentDescription="@string/sources_user_agent"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/referer" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="textUri" android:maxLines="1" android:hint="@string/sources_referer" android:contentDescription="@string/sources_referer"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/username" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="text" android:maxLines="1" android:hint="@string/ui_username" android:contentDescription="@string/ui_username"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
+            <EditText android:id="@+id/password" android:imeOptions="flagNoFullscreen"
+                android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action"
+                android:inputType="textPassword" android:maxLines="1" android:hint="@string/ui_password" android:contentDescription="@string/ui_password"
+                android:importantForAutofill="no" android:saveEnabled="false"
+                android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
             <CheckBox android:id="@+id/enabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/jy_touch_height" android:text="@string/sources_enabled" android:textColor="?attr/jy_on_surface"/>
-            <androidx.appcompat.widget.AppCompatButton android:id="@+id/check" android:drawableStart="@drawable/ic_check" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sources_check"/>
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/check" android:drawableStart="@drawable/ic_check" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginVertical="8dp" android:text="@string/sources_check"/>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/save" android:drawableStart="@drawable/ic_check" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sources_save"/>
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/cancel" android:drawableStart="@drawable/ic_close" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="@dimen/jy_content_gap" android:text="@string/sources_cancel"/>

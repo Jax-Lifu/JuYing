@@ -15,8 +15,22 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * 设备硬件特性与形态检测器。
+ *
+ * **What**: 在运行时动态探测当前物理设备的形态（TV / TABLET / PHONE）以及硬件性能档位（LOW / MID / HIGH）。
+ *
+ * **Why**: 聚映需深度适配 1GB~4GB 低功耗电视盒子与平板手机；
+ * 通过动态感知内存与 UI 模式（兼容国产 AOSP 无触屏机顶盒），驱动网络并发、图片采样、列表动画及播放缓冲预算。
+ */
 object DeviceProfileDetector {
 
+    /**
+     * 检测并计算当前设备的运行概况配置。
+     *
+     * @param context 应用上下文
+     * @return 包含形态 [DeviceForm]、性能档位 [PerformanceTier] 与物理内存总量的 [DeviceProfile]
+     */
     fun detect(context: Context): DeviceProfile {
         val am = context.getSystemService(ActivityManager::class.java)
         val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
@@ -45,6 +59,7 @@ object DeviceProfileDetector {
     }
 }
 
+/** 设备运行概况 [DeviceProfile] 的 Hilt 单例提供模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 object DeviceModule {

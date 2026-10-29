@@ -11,6 +11,7 @@ import com.flytech.juying.core.ui.loadImage
 import com.flytech.juying.feature.live.databinding.ItemChannelBinding
 import com.flytech.juying.feature.live.databinding.ItemGroupBinding
 
+/** 直播频道分组横向/纵向选择适配器。 */
 class GroupAdapter(private val onSelect: (Int) -> Unit) :
     ListAdapter<String, GroupAdapter.VH>(object : DiffUtil.ItemCallback<String>() {
         override fun areItemsTheSame(a: String, b: String) = a == b
@@ -61,12 +62,14 @@ class GroupAdapter(private val onSelect: (Int) -> Unit) :
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         holder.b.name.text = getItem(position)
+        holder.b.root.contentDescription = getItem(position)
         holder.b.root.isSelected = position == selected
     }
 
     private companion object { const val GROUP_FOCUS_DELAY_MS = 120L }
 }
 
+/** 直播频道列表适配器，支持 Payload 局部刷新台标与焦点态。 */
 class ChannelAdapter(private val onFocus: (Channel) -> Unit, private val onClick: (Channel) -> Unit) :
     ListAdapter<Channel, ChannelAdapter.VH>(object : DiffUtil.ItemCallback<Channel>() {
         override fun areItemsTheSame(a: Channel, b: Channel) = a.id == b.id

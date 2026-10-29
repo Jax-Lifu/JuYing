@@ -35,6 +35,7 @@ class FakeLiveRepository(private val groups: List<ChannelGroup> = emptyList()) :
         )
 }
 
+/** 测试环境下的内存数据源仓储实现。 */
 class FakeSourceRepository(initial: List<SourceConfig> = emptyList()) : SourceRepository {
     private val state = MutableStateFlow(initial)
 
@@ -52,6 +53,7 @@ class FakeSourceRepository(initial: List<SourceConfig> = emptyList()) : SourceRe
     }
 }
 
+/** 单元测试协程主调度器 JUnit 规则。 */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
     val testDispatcher: TestDispatcher = UnconfinedTestDispatcher(),

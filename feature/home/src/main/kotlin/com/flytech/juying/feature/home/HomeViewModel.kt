@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/** 主页 ViewModel，负责推荐内容推荐算法、去重及继续观看合流。 */
 @HiltViewModel
 class HomeViewModel @Inject constructor(private val vod: VodRepository) : ViewModel() {
     private val items = MutableStateFlow<List<VodItem>>(emptyList())

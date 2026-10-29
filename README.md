@@ -94,12 +94,10 @@ Data 层    Repository（单向数据流 Flow） → SourceRegistry → 具体 s
 |---|---|
 | **已实现** | 多模块依赖与 DI 契约；IPTV/M3U/TXT 导入与 XMLTV 解析；央视官方高清点播与直播原生播放；TVBox CMS/Jar/JS/Python 分类、详情、搜索与解析；Samba 与本地媒体浏览；音轨与外挂字幕匹配；凭据加密安全存储；视口内容预取与连续切台优化 |
 | **能力边界** | 点播仅使用原生播放器，不回退 WebView；央视默认高清，不支持 UDRM/Widevine/HEVC；脚本仅支持已实现的兼容沙箱契约；第三方订阅需用户自备 |
-| **进行中 / 待实现** | TVBox 多层仓库选择与配置文件导入、缓存清理入口、系统级画中画；详见 [路线图](docs/ROADMAP.md) |
+| **进行中 / 待实现** | 一期进行中：TVBox 多层仓库选择与配置文件导入、设置页缓存清理入口、TV 高规格画质音效实测；二期规划：系统级画中画、NFS/Alist 等；详见 [路线图](docs/ROADMAP.md) |
 
 ## 相关文档
 
 - [工程说明与代理约束](AGENTS.md)
 - [点播与脚本兼容范围](docs/TVBOX_CCTV.md)
-- [FongMi/TV 兼容性对照](docs/FONGMI_COMPATIBILITY.md)
 - [开发路线图](docs/ROADMAP.md)
-- [连续切台优化与验证](docs/research/2026-10-27-channel-switch-optimization.md)

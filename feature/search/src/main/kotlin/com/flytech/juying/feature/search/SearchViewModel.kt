@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 搜索页面 UI 状态实体。 */
 data class SearchUiState(
     val keyword: String = "", val posters: List<VodPoster> = emptyList(),
     val targets: Map<SearchTarget, SearchOutcome?> = emptyMap(), val page: Int = 0,
@@ -23,6 +24,11 @@ data class SearchUiState(
 )
 
 @HiltViewModel
+/**
+ * 全源聚合搜索页面 ViewModel。
+ *
+ * **What**: 处理用户搜索词输入、触发跨源增量搜索请求、维护各站点完成状态并在用户发起新查询时中断旧任务。
+ */
 class SearchViewModel @Inject constructor(private val vod: VodRepository) : ViewModel() {
     private val state = MutableStateFlow(SearchUiState())
     val ui = state.asStateFlow()

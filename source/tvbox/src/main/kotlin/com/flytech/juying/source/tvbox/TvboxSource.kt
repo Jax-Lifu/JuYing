@@ -45,7 +45,15 @@ import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
-/** 用户配置的 CMS JSON 与 Spider 共用内容协议，UI 无需知道站点的执行语言。 */
+/**
+ * TVBox 聚合点播与直播数据源实现。
+ *
+ * **What**: 兼容 CMS XML/JSON（type 0/1）、Jar/DEX（type 3）、QuickJS（type 3）、
+ * CPython 3.11（type 3）以及 HTTP Spider（type 4）全生态接口。
+ *
+ * **Why**: 支持 Base64 包装与 2423 AES-CBC 密文配置解码、相对路径解析与 IDN 中文域名；
+ * 爬虫在独立故障隔离进程中串行执行，空闲回收；所有语言输出标准化为统一的内容模型，原生播放器直出。
+ */
 @Singleton
 class TvboxSource @Inject constructor(
     private val client: Provider<OkHttpClient>,
@@ -262,6 +270,7 @@ class TvboxSource @Inject constructor(
     }
 }
 
+/** TVBox 数据源的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class TvboxModule {

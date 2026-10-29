@@ -28,6 +28,7 @@ import java.text.DateFormat
 import java.util.Date
 import com.flytech.juying.core.designsystem.R as D
 
+/** 直播页面 Fragment，支持三端形态分流与遥控器换台。 */
 @AndroidEntryPoint
 class LiveFragment : ViewBindingFragment<FragmentLiveBinding>(FragmentLiveBinding::inflate) {
     private val vm: LiveViewModel by viewModels()

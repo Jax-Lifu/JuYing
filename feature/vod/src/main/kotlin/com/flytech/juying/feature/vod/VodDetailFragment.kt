@@ -21,6 +21,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.flytech.juying.core.designsystem.R as DesignR
 
+/** 点播详情与选集播放页 Fragment。 */
 @AndroidEntryPoint
 class VodDetailFragment : ViewBindingFragment<FragmentVodDetailBinding>(FragmentVodDetailBinding::inflate) {
     private val vm: VodDetailViewModel by viewModels()
@@ -57,6 +58,7 @@ class VodDetailFragment : ViewBindingFragment<FragmentVodDetailBinding>(Fragment
         }
         launchOnStarted { favorites.observeAll().collect { items ->
             favorited = items.any { it.sourceId == vm.sourceId && it.ref == requireArguments().getString(ITEM_ID) }
+            binding.favorite.isSelected = favorited
             binding.favorite.setCompoundDrawablesRelativeWithIntrinsicBounds(if (favorited) DesignR.drawable.ic_favorite_filled else DesignR.drawable.ic_favorite, 0, 0, 0)
             binding.favorite.setText(if (favorited) DesignR.string.ui_favorited else DesignR.string.ui_favorite)
         } }

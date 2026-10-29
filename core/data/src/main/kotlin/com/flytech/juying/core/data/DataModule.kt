@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.Multibinds
 
+/** 核心数据层 Repository 绑定的 Hilt 模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {

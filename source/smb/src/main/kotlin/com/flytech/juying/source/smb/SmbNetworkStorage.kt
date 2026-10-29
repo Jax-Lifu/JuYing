@@ -36,7 +36,15 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** On-demand LAN discovery and short-lived login sessions; neither touches playback's connection cache. */
+/**
+ * SMB / Samba 局域网网络存储发现与短生命周期会话交互。
+ *
+ * **What**: 负责局域网网段探测（445 端口扫描 + NSD 服务发现）、认证鉴权、
+ * 共享名枚举（DCE-RPC srvsvc NetShareEnumAll）及配置草稿组装。
+ *
+ * **Why**: 独立于长期播放连接池，发现与测试连接会话用完即关，避免泄漏 TCP 套接字；
+ * 支持在连接与发现时异步解析 NetBIOS / DNS 机器名。
+ */
 class SmbNetworkStorage @Inject constructor(
     @ApplicationContext private val context: Context,
     @Dispatcher(JuyingDispatchers.IO) private val ioDispatcher: CoroutineDispatcher,
@@ -58,7 +66,10 @@ class SmbNetworkStorage @Inject constructor(
                     coroutineScope {
                         batch.forEach { host ->
                             launch {
-                                if (smbPortOpen(host)) send(NetworkStorageDevice(SourceType.SMB, host, host, SMB_PORT))
+                                if (smbPortOpen(host)) {
+                                    val hostname = SmbHostResolver.resolve(host)
+                                    send(NetworkStorageDevice(SourceType.SMB, hostname, host, SMB_PORT))
+                                }
                             }
                         }
                     }
@@ -84,8 +95,11 @@ class SmbNetworkStorage @Inject constructor(
         val port = uri.port.takeIf { it != -1 } ?: SMB_PORT
         require(port in 1..65535) { "端口必须在 1–65535 范围内" }
         val host = uri.host.removeSurrounding("[", "]")
-        return NetworkStorageDevice(SourceType.SMB, host, host, port)
+        val name = runCatching { SmbHostResolver.resolve(host) }.getOrDefault(host)
+        return NetworkStorageDevice(SourceType.SMB, name, host, port)
     }
+
+    fun resolveHostname(address: String): String? = SmbHostResolver.resolve(address).takeUnless { it == address }
 
     suspend fun shares(device: NetworkStorageDevice, username: String, password: String, domain: String): List<String> =
         withTimeout(LOGIN_TIMEOUT_MS) {
@@ -121,9 +135,14 @@ class SmbNetworkStorage @Inject constructor(
         }
         val url = URI("smb", null, device.host, device.port.takeIf { it != SMB_PORT } ?: -1, "/$share", null, null).toASCIIString()
         val identity = "${device.host.lowercase()}:${device.port}/$share/${username.ifEmpty { "guest" }}/$domain"
+        val displayName = if (device.name.isNotBlank() && !SmbHostResolver.isIpAddress(device.name)) {
+            device.name
+        } else {
+            SmbHostResolver.resolve(device.host)
+        }
         return SourceConfig(
             id = "smb:${UUID.nameUUIDFromBytes(identity.toByteArray(Charsets.UTF_8))}",
-            name = "$share · ${device.name}",
+            name = "$share · $displayName",
             type = SourceType.SMB,
             url = url,
             username = username,

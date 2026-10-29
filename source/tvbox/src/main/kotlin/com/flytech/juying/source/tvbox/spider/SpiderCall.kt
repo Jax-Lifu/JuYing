@@ -25,9 +25,11 @@ internal enum class SpiderMethod(val function: String, val legacyFunction: Strin
     PLAYER("playerContent", "play"),
 }
 
+/** 跨进程 Spider 爬虫调用请求与方法签名载体。 */
 @Serializable
 internal data class SpiderCall(val spec: SpiderSpec, val method: SpiderMethod, val args: JsonArray)
 
+/** 爬虫执行超时与并发调用预算限制。 */
 internal object SpiderLimits {
     const val CALL_TIMEOUT_MS = 20_000L
     const val BIND_TIMEOUT_MS = 5_000L
@@ -41,6 +43,7 @@ internal object SpiderLimits {
     const val MODULE_COUNT = 32
 }
 
+/** 爬虫跨进程调用序列化协议与 JSON 桥接工具。 */
 internal object SpiderWire {
     const val CALL = 1
     const val RESULT = 2

@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
     tableName = "sources",
     indices = [Index(value = ["sortOrder", "name"])],
 )
+/** 数据源 Room 数据库实体映射表。 */
 data class SourceEntity(
     @PrimaryKey val id: String,
     val name: String,
@@ -24,6 +25,7 @@ data class SourceEntity(
     tableName = "history",
     indices = [Index(value = ["updatedAt"])],
 )
+/** 播放历史 Room 数据库实体映射表。 */
 data class HistoryDbEntity(
     @PrimaryKey val id: String,
     val kind: String,
@@ -41,6 +43,7 @@ data class HistoryDbEntity(
     tableName = "favorites",
     indices = [Index(value = ["createdAt"])],
 )
+/** 收藏项目 Room 数据库实体映射表。 */
 data class FavoriteEntity(
     @PrimaryKey val id: String,
     val kind: String,

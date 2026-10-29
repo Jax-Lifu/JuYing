@@ -16,6 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.flytech.juying.core.designsystem.R as D
 
+/** 局域网网络存储（SMB/NAS）向导与设备发现 Fragment。 */
 @AndroidEntryPoint
 class NasFragment : ViewBindingFragment<FragmentNasBinding>(FragmentNasBinding::inflate) {
     private val vm: NasViewModel by viewModels()
@@ -23,7 +24,13 @@ class NasFragment : ViewBindingFragment<FragmentNasBinding>(FragmentNasBinding::
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val devices = MediaRowAdapter({ row ->
-            vm.ui.value.devices.firstOrNull { address(it.host, it.port) == row.id }?.let(vm::select)
+            val device = vm.ui.value.devices.firstOrNull { address(it.host, it.port) == row.id } ?: return@MediaRowAdapter
+            val connectedId = vm.connectedSourceIdFor(device)
+            if (connectedId != null) {
+                navigator.openSource(requireActivity(), connectedId, SourceCapability.BROWSE)
+            } else {
+                vm.select(device)
+            }
         })
         val shares = MediaRowAdapter({ row -> if (!vm.ui.value.busy) vm.connectShare(row.id) })
         binding.devices.apply { layoutManager = LinearLayoutManager(context); adapter = devices; itemAnimator = null }
@@ -120,8 +127,20 @@ class NasFragment : ViewBindingFragment<FragmentNasBinding>(FragmentNasBinding::
             message?.let(binding.status::setText)
             devices.submitList(state.devices.map { device ->
                 val location = address(device.host, device.port)
-                MediaRow(location, device.name.ifBlank { location },
-                    location.takeUnless { it == device.name }.orEmpty(), D.drawable.ic_vod)
+                val connectedId = vm.connectedSourceIdFor(device)
+                val isConnected = connectedId != null
+                val title = if (isConnected) {
+                    "${device.name.ifBlank { location }} (${getString(R.string.nas_connected_tag)})"
+                } else {
+                    device.name.ifBlank { location }
+                }
+                val subtitle = if (isConnected) {
+                    getString(R.string.nas_connected_hint, location)
+                } else {
+                    location.takeUnless { it == device.name }.orEmpty()
+                }
+                val icon = if (isConnected) D.drawable.ic_check else D.drawable.ic_server
+                MediaRow(location, title, subtitle, icon)
             })
             shares.submitList(state.shares.map { MediaRow(it, it, getString(R.string.nas_open_share), D.drawable.ic_files) })
             if (changedStage && state.stage == NasStage.LOGIN) {

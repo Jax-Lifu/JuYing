@@ -48,6 +48,7 @@ internal data class TvboxItemRef(val siteKey: String, val id: String) {
     }
 }
 
+/** TVBox 分集引用模型，用于在不同子站点与线路间精确定位。 */
 @Serializable
 internal data class TvboxEpisodeRef(
     val item: TvboxItemRef,
@@ -63,8 +64,11 @@ internal data class TvboxEpisodeRef(
     }
 }
 
+/** TVBox 分集模型，包含集名与直接播放/嗅探地址。 */
 internal data class TvboxEpisode(val name: String, val playId: String)
+/** TVBox 播放线路分组，包含线路名称与分集列表。 */
 internal data class TvboxPlayGroup(val name: String, val episodes: List<TvboxEpisode>)
+/** TVBox 影片基础实体。 */
 internal data class TvboxVideo(
     val id: String,
     val title: String,

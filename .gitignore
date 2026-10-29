@@ -19,3 +19,10 @@ build/
 .impeccable/
 design/
 /.venv/
+
+# Internal research and dev verification logs
+docs/research/
+docs/TVBOX_PRESET_AUDIT.md
+docs/UX_12_VERIFICATION_20261027.md
+docs/FONGMI_COMPATIBILITY.md
+.agents/skills/impeccable/

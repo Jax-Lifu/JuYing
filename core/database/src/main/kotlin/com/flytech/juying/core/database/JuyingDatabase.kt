@@ -16,12 +16,14 @@ import javax.inject.Singleton
     version = 4,
     exportSchema = false,
 )
+/** 应用 Room 核心数据库，包含数据源、播放历史与收藏三张表。 */
 abstract class JuyingDatabase : RoomDatabase() {
     abstract fun sourceDao(): SourceDao
     abstract fun historyDao(): HistoryDao
     abstract fun favoriteDao(): FavoriteDao
 }
 
+/** Room 数据库及各 DAO 实例的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {

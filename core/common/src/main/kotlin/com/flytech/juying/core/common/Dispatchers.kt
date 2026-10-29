@@ -14,6 +14,7 @@ annotation class Dispatcher(val dispatcher: JuyingDispatchers)
 
 enum class JuyingDispatchers { Default, IO }
 
+/** 协程调度器注入模块，提供 Default / IO / Main 调度器隔离。 */
 @Module
 @InstallIn(SingletonComponent::class)
 object DispatchersModule {

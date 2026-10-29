@@ -1,5 +1,6 @@
 package com.flytech.juying.core.model
 
+/** 字幕轨模型，包含字幕地址、语言代码与 MIME 类型。 */
 data class Subtitle(val url: String, val lang: String? = null, val mimeType: String? = null)
 
 /**
@@ -41,6 +42,7 @@ data class PlayRequest(
     val extra: Map<String, String> = emptyMap(),
 )
 
+/** 播放历史领域模型，包含数据源、内容引用、进度及续播所需扩展信息。 */
 data class HistoryEntry(
     val id: String,
     val kind: PlayKind,
@@ -55,6 +57,7 @@ data class HistoryEntry(
     val extra: Map<String, String> = emptyMap(),
 )
 
+/** 用户收藏领域模型。 */
 data class FavoriteEntry(
     val id: String,
     val kind: PlayKind,

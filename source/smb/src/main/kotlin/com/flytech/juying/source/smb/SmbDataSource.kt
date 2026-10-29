@@ -92,6 +92,7 @@ class SmbDataSource(private val connections: SmbConnections) : BaseDataSource(/*
     }
 }
 
+/** Samba (SMB) 协议 Media3 DataSource 工厂。 */
 @UnstableApi
 class SmbDataSourceFactory @Inject constructor(private val connections: SmbConnections) : DataSource.Factory {
     override fun createDataSource(): DataSource = SmbDataSource(connections)

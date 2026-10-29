@@ -7,7 +7,7 @@
             android:layout_weight="1" android:layout_marginEnd="12dp" android:text="@string/browse_add_storage"/>
         <androidx.appcompat.widget.AppCompatButton android:id="@+id/add_nas" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="@string/browse_add_nas"
-            app:drawableStartCompat="@drawable/ic_vod" android:drawablePadding="8dp"/>
+            app:drawableStartCompat="@drawable/ic_server" android:drawablePadding="8dp"/>
     </LinearLayout>
     <include android:id="@+id/directory_navigation" layout="@layout/view_browse_navigation"
         android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone"/>

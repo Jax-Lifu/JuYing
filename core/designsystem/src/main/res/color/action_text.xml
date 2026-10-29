@@ -1,4 +1,5 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
  <item android:state_enabled="false" android:alpha="0.38" android:color="?attr/jy_on_surface"/>
+ <item android:state_selected="true" android:color="?attr/colorOnPrimary"/>
  <item android:color="?attr/jy_on_surface"/>
 </selector>

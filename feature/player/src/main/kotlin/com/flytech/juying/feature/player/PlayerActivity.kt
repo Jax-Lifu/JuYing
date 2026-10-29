@@ -50,6 +50,7 @@ import com.flytech.juying.feature.player.databinding.ActivityPlayerBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+/** 全屏播放器 Activity，绑定 SurfaceView 原生渲染并处理按键分发。 */
 @AndroidEntryPoint
 class PlayerActivity : JuyingActivity(), SourcePickerHost {
     @Inject lateinit var navigator: Navigator

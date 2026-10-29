@@ -18,6 +18,7 @@ import com.flytech.juying.core.ui.ViewBindingFragment
 import com.flytech.juying.feature.vod.databinding.FragmentVodBinding
 import dagger.hilt.android.AndroidEntryPoint
 
+/** 点播分类与瀑布流推荐页面 Fragment。 */
 @AndroidEntryPoint
 class VodFragment : ViewBindingFragment<FragmentVodBinding>(FragmentVodBinding::inflate) {
     private val vm: VodViewModel by viewModels()

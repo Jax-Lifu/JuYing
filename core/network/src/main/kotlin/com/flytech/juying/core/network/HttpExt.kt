@@ -16,6 +16,12 @@ import kotlin.coroutines.resumeWithException
 
 private const val DEFAULT_MAX_TEXT_BYTES = 15L * 1024 * 1024 // 15MB 上限，防止误拉取视频流撑爆低配机内存
 
+/**
+ * 将 OkHttp 的异步 [Call] 转换为支持协程取消的挂起扩展。
+ *
+ * **Why**: 协程作用域取消或超时（如超时取消网络嗅探）时，自动触发 [Call.cancel]，
+ * 立即关闭底层 TCP 连接并释放缓冲区，避免后台任务继续空转。
+ */
 suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
     enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {

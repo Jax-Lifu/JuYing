@@ -27,6 +27,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.flytech.juying.core.designsystem.R as D
 
+/** 文件与存储目录树浏览 Fragment。 */
 @AndroidEntryPoint
 class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowseBinding::inflate) {
     private val vm: BrowseViewModel by viewModels()
@@ -91,8 +92,14 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
                 state.failed -> R.string.browse_unavailable; state.recovered -> D.string.ui_directory_recovered;
                 state.source == null -> R.string.browse_no_storage; else -> D.string.ui_empty })
             val fileList = binding.files
-            rows.submitList(if (state.showRoots) state.sources.map { MediaRow(it.id, it.name,
-                getString(R.string.browse_open_storage), D.drawable.ic_files) }
+            rows.submitList(if (state.showRoots) state.sources.map {
+                val icon = when (it.type) {
+                    com.flytech.juying.core.model.SourceType.LOCAL -> D.drawable.ic_storage
+                    com.flytech.juying.core.model.SourceType.SMB -> D.drawable.ic_server
+                    else -> D.drawable.ic_files
+                }
+                MediaRow(it.id, it.name, getString(R.string.browse_open_storage), icon)
+            }
             else state.files.map { MediaRow(it.path, it.name,
                 if (it.isDirectory) getString(R.string.browse_open_folder) else if (it.isVideo) getString(R.string.browse_play_file,
                     if (it.size > 0) Formatter.formatFileSize(requireContext(), it.size) else getString(D.string.ui_file_unknown))

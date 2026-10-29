@@ -21,14 +21,17 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.io.FileNotFoundException
 
+/** 文件浏览面包屑路径导航条目。 */
 data class BrowseCrumb(val path: String, val label: String)
 
+/** 文件浏览页面 UI 状态。 */
 data class BrowseUiState(val source: SourceConfig? = null, val path: String = "", val canGoUp: Boolean = false,
     val files: List<FileEntry> = emptyList(), val loading: Boolean = true, val failed: Boolean = false,
     val accessDenied: Boolean = false, val recovered: Boolean = false,
     val sources: List<SourceConfig> = emptyList(), val showRoots: Boolean = true,
     val breadcrumbs: List<BrowseCrumb> = emptyList(), val canRequestStorageAccess: Boolean = false)
 
+/** 文件与存储浏览页面 ViewModel。 */
 @HiltViewModel
 class BrowseViewModel @Inject constructor(private val sources: SourceRepository,
     private val browse: BrowseRepository, private val memory: SourceBrowseMemory) : ViewModel() {

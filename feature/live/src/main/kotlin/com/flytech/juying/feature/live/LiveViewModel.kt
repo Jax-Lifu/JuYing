@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** 直播页面 UI 状态实体。 */
 data class LiveUiState(
     val sourceId: String? = null,
     val groups: List<ChannelGroup> = emptyList(),
@@ -27,6 +28,13 @@ data class LiveUiState(
 )
 
 @HiltViewModel
+/**
+ * 直播页面 ViewModel。
+ *
+ * **What**: 负责多源分组与频道展示、当前选中分组状态驱动以及响应外部切源通知。
+ *
+ * **Why**: 遵循响应式状态流，优先呈现已缓存的频道列表，并在换源时自动取消未完成的后台加载任务。
+ */
 class LiveViewModel @Inject constructor(
     private val sources: SourceRepository,
     private val live: LiveRepository,

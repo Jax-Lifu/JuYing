@@ -17,6 +17,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.security.MessageDigest
 
+/** TVBox 多语言爬虫进程隔离运行时管理器。 */
 internal interface SpiderRuntime : AutoCloseable {
     suspend fun call(method: SpiderMethod, args: JsonArray): String
 

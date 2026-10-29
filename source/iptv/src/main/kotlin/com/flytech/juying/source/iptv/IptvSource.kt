@@ -30,6 +30,15 @@ import okio.source
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
+/**
+ * IPTV 直播数据源实现。
+ *
+ * **What**: 负责网络订阅（HTTP/HTTPS）及本地文件（`content://`）M3U / TXT 播放列表解析、
+ * 频道分组聚合、XMLTV 电子节目单（EPG，支持 gzip 流式解压）按需抓取及多线路备选模型组装。
+ *
+ * **Why**: 支持同频道多线路故障转移（Failover），上游单线路故障时自动切线；
+ * 采用 16MB 流式 Pull 解析与局部时间窗裁剪，防止超大 EPG 文件撑爆低内存盒子。
+ */
 @Singleton
 class IptvSource @Inject constructor(
     private val client: Provider<OkHttpClient>,
@@ -99,6 +108,7 @@ class IptvSource @Inject constructor(
     }
 }
 
+/** IPTV 数据源的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class IptvModule {

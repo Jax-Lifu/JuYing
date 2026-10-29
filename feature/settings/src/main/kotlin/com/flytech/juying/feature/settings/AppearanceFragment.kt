@@ -13,6 +13,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.flytech.juying.core.designsystem.R as D
 
+/** 外观与主题偏好设置 Fragment。 */
 @AndroidEntryPoint
 class AppearanceFragment : ViewBindingFragment<FragmentAppearanceBinding>(FragmentAppearanceBinding::inflate) {
     @Inject lateinit var navigator: Navigator

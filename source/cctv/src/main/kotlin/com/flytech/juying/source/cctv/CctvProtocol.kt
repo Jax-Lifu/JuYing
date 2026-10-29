@@ -29,6 +29,7 @@ internal data class CctvEpisodeRef(
     val playback: CctvPlayback,
 )
 
+/** 央视官方专辑数据结构，包含专辑 ID、标题、封面与演职员。 */
 internal data class CctvAlbum(
     val id: String,
     val title: String,
@@ -40,6 +41,7 @@ internal data class CctvAlbum(
     val vsetId: String?,
 )
 
+/** 央视官方视频分集数据结构，包含 GUID、标题与时长。 */
 internal data class CctvEpisode(
     val guid: String,
     val title: String,
@@ -49,6 +51,7 @@ internal data class CctvEpisode(
     val durationSeconds: Int,
 )
 
+/** 央视官方 JSON 响应解析与分集过滤工具。 */
 internal object CctvJson {
     val format = Json { ignoreUnknownKeys = true }
     private const val MAIN_FEATURE_MIN_SECONDS = 8 * 60

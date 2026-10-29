@@ -13,11 +13,13 @@ import com.flytech.juying.core.ui.databinding.ItemCoverCardBinding
 data class CoverCard(val id: String, val title: String, val subtitle: String, val cover: String? = null,
     val progress: Int? = null, val isLogo: Boolean = false)
 
+/** 大卡片封面列表 RecyclerView 适配器，支持 D-Pad 遥控器焦点高亮。 */
 class CoverCardAdapter(private val carousel: Boolean = false, private val onClick: (CoverCard) -> Unit,
     private val onLongClick: ((CoverCard) -> Unit)? = null) : ListAdapter<CoverCard, CoverCardAdapter.Holder>(object : DiffUtil.ItemCallback<CoverCard>() {
     override fun areItemsTheSame(a: CoverCard, b: CoverCard) = a.id == b.id
     override fun areContentsTheSame(a: CoverCard, b: CoverCard) = a == b
 }) {
+    /** 列表项 ViewHolder 缓存载体。 */
     class Holder(val binding: ItemCoverCardBinding) : RecyclerView.ViewHolder(binding.root)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val binding = ItemCoverCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)

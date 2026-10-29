@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class SourceFormMessage { NONE, INVALID_NAME, INVALID_URL, INVALID_EPG, SAVED, FAILED, CHECKED, CHECK_EMPTY, CHECK_FAILED, CHECK_TIMEOUT, FILE_FAILED }
+/** 数据源编辑表单状态草稿载体。 */
 data class SourceEditor(val setup: UrlSourceSetup, val existing: SourceConfig? = null,
     val name: String = existing?.name.orEmpty(), val url: String = existing?.url.orEmpty(),
     val enabled: Boolean = existing?.enabled ?: true,
@@ -27,11 +28,17 @@ data class SourceEditor(val setup: UrlSourceSetup, val existing: SourceConfig? =
         enabled != (existing?.enabled ?: true) || username != existing?.username.orEmpty() || password != existing?.password.orEmpty() ||
         epgUrl != existing?.extra?.get("epgUrl").orEmpty() || userAgent != existing?.extra?.get("userAgent").orEmpty() || referer != existing?.extra?.get("referer").orEmpty()
 }
+/** 设置页面 UI 状态实体。 */
 data class SettingsUiState(val sources: List<SourceConfig> = emptyList(), val editor: SourceEditor? = null,
     val saving: Boolean = false, val checking: Boolean = false, val checkedCount: Int = 0,
     val message: SourceFormMessage = SourceFormMessage.NONE)
 
 @HiltViewModel
+/**
+ * 数据源管理与设置页面 ViewModel。
+ *
+ * **What**: 负责数据源的新增、编辑草稿表单校验、可用性连接检查（Check）以及启停用/删除持久化。
+ */
 class SettingsViewModel @Inject constructor(private val sources: SourceRepository) : ViewModel() {
     val setups = sources.urlSetups()
     private val state = MutableStateFlow(SettingsUiState())

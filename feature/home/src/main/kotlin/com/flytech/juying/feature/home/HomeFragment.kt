@@ -14,6 +14,7 @@ import com.flytech.juying.core.model.HistoryEntry
 import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
 import com.flytech.juying.core.model.SourceCapability
+import com.flytech.juying.core.model.SourceType
 import com.flytech.juying.core.ui.MediaRow
 import com.flytech.juying.core.ui.MediaRowAdapter
 import com.flytech.juying.core.ui.CoverCard
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.CancellationException
 import com.flytech.juying.core.designsystem.R as D
 
+/** 应用主页 Fragment，呈现点播精选推荐与最近观看续播卡。 */
 @AndroidEntryPoint
 class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBinding::inflate) {
     private val vm: HomeViewModel by viewModels()
@@ -82,10 +84,17 @@ class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBindin
                         getString(D.string.ui_vod).takeIf { SourceCapability.VOD in capabilities },
                         getString(D.string.ui_files).takeIf { SourceCapability.BROWSE in capabilities },
                     )
-                    val icon = when {
-                        SourceCapability.VOD in capabilities -> D.drawable.ic_vod
-                        SourceCapability.LIVE in capabilities -> D.drawable.ic_live
-                        else -> D.drawable.ic_files
+                    val icon = when (config.type) {
+                        SourceType.CCTV -> D.drawable.ic_tv_tower
+                        SourceType.LOCAL -> D.drawable.ic_storage
+                        SourceType.SMB -> D.drawable.ic_server
+                        SourceType.TVBOX -> D.drawable.ic_cloud_stream
+                        SourceType.IPTV -> D.drawable.ic_live
+                        else -> when {
+                            SourceCapability.VOD in capabilities -> D.drawable.ic_vod
+                            SourceCapability.LIVE in capabilities -> D.drawable.ic_live
+                            else -> D.drawable.ic_files
+                        }
                     }
                     MediaRow(config.id, config.name, labels.joinToString(" · "), icon)
                 })

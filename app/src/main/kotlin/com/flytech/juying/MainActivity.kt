@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.flytech.juying.core.designsystem.R as D
 
+/** 单 Activity 架构主界面宿主，承载全局 Fragment 导航视图容器与遥控按键分发。 */
 @AndroidEntryPoint
 class MainActivity : JuyingActivity(), SourcePickerHost {
     @Inject lateinit var navigator: Navigator

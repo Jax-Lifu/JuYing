@@ -245,6 +245,7 @@ class CctvSource @Inject constructor(
     }
 }
 
+/** 央视官方内置电视频道列表静态配置。 */
 internal object CctvChannels {
     // 官网各频道首页的高清台标；首页和直播页直接消费模型，不识别 CCTV 类型。
     fun logo(id: String): String = requireNotNull(logos[id])
@@ -280,6 +281,7 @@ internal object CctvChannels {
     )
 }
 
+/** 央视数据源的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class CctvModule {

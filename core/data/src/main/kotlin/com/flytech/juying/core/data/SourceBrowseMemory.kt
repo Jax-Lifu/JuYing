@@ -8,7 +8,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Source IDs, never display names, own each browsing position and category selection. */
+/**
+ * 数据源浏览状态与导航记忆存储。
+ *
+ * **What**: 记录用户在各业务板块（直播、点播、文件浏览）最后激活的数据源 ID，
+ * 以及该源最后停留的子站点、分类、路径与焦点位置。
+ *
+ * **Why**: 保证用户离开后再次进入时无感恢复上下文，且记忆严格绑定不可变的 [sourceId]，
+ * 避免因数据源改名或重名产生路由错乱。
+ */
 @Singleton
 class SourceBrowseMemory @Inject constructor(@ApplicationContext context: Context) {
     private val prefs by lazy { context.getSharedPreferences("source_browse", Context.MODE_PRIVATE) }

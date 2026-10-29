@@ -5,6 +5,7 @@ import com.flytech.juying.core.model.AppSettings
 import com.flytech.juying.core.model.PlayItem
 import kotlinx.coroutines.flow.StateFlow
 
+/** 播放内核底层状态模型，包含缓冲、宽高、播放中与错误状态。 */
 data class PlayerState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,

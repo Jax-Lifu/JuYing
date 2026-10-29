@@ -22,6 +22,8 @@ data class Channel(
     val lines: List<PlayLine> = urls.map { PlayLine(url = it) },
 )
 
+/** 直播频道分组模型，包含分组名称及该组下的频道列表。 */
 data class ChannelGroup(val name: String, val channels: List<Channel>)
 
+/** 电子节目单（EPG）条目，包含节目名称、开始与结束时间戳。 */
 data class EpgProgram(val channelId: String, val title: String, val startMs: Long, val endMs: Long)

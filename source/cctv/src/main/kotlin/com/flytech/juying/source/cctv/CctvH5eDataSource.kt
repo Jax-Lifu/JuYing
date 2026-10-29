@@ -150,11 +150,13 @@ internal object CctvH5eDecoder {
     external fun decodeLive(segment: ByteArray): Int
 }
 
+/** CCTV H5E/CDRM 专有流 Media3 DataSource 工厂。 */
 @UnstableApi
 class CctvH5eDataSourceFactory @Inject constructor(private val client: Provider<OkHttpClient>) : DataSource.Factory {
     override fun createDataSource(): DataSource = CctvH5eDataSource(client.get())
 }
 
+/** CCTV DataSource.Factory 的 Hilt Map 绑定模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class CctvH5eDataSourceModule {

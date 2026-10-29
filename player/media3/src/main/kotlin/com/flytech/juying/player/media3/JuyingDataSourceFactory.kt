@@ -40,6 +40,7 @@ class JuyingDataSourceFactory @Inject constructor(
     }
 }
 
+/** 按 URI Scheme 协议分流的多源 Media3 DataSource 包装实现。 */
 @UnstableApi
 internal class SchemeRoutingDataSource(
     private val default: DataSource,

@@ -24,6 +24,7 @@ import kotlinx.coroutines.runInterruptible
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Samba (SMB) 局域网网络共享数据源实现。 */
 @Singleton
 class SmbSource @Inject constructor(
     private val connections: SmbConnections,
@@ -41,6 +42,7 @@ class SmbSource @Inject constructor(
         networkStorage.shares(device, username, password, domain)
     override fun configuration(device: NetworkStorageDevice, share: String, username: String, password: String, domain: String) =
         networkStorage.configuration(device, share, username, password, domain)
+    override fun resolveHostname(address: String) = networkStorage.resolveHostname(address)
 
     override suspend fun list(config: SourceConfig, path: String): List<FileEntry> =
         runInterruptible(ioDispatcher) {
@@ -88,6 +90,7 @@ internal fun SMBApiException.asBrowseException(): Exception = when (status) {
     else -> this
 }
 
+/** SMB 数据源的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class SmbModule {

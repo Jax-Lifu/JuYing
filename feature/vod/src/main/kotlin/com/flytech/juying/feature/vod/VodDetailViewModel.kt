@@ -14,10 +14,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 点播详情页面 UI 状态实体。 */
 data class VodDetailUiState(val detail: VodDetail? = null, val group: Int = 0,
     val loading: Boolean = true, val failed: Boolean = false)
 
 @HiltViewModel
+/**
+ * 影片详情页面 ViewModel。
+ *
+ * **What**: 异步加载指定数据源与节目 ID 的影片详情、播放线路组及分集列表。
+ */
 class VodDetailViewModel @Inject constructor(saved: SavedStateHandle, private val vod: VodRepository) : ViewModel() {
     val sourceId: String = checkNotNull(saved[VodDetailFragment.SOURCE_ID])
     private val itemId: String = checkNotNull(saved[VodDetailFragment.ITEM_ID])

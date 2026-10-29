@@ -62,6 +62,15 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * 统一数据源仓储实现。
+ *
+ * **What**: 协调本地持久化数据源（Room [SourceDao]）与网络/外设动态发现数据源（[SourceDiscoveryProvider]），
+ * 负责预置源的一次性安装、密码与敏感令牌加解密（[SourceSecrets]）以及基于能力契约（[SourceCapability]）的合流分发。
+ *
+ * **Why**: 抹平静态配置源与动态热插拔源（如 USB 插入、局域网 SSDP/mDNS 广播）的差异，
+ * 为 UI 层提供统一的单向 Flow 数据流。
+ */
 @Singleton
 class DefaultSourceRepository @Inject constructor(
     private val dao: SourceDao,
@@ -99,7 +108,25 @@ class DefaultSourceRepository @Inject constructor(
                     settings.markSourcePresetInstalled(preset.id)
                 }
             }
-        }.map { rows -> rows.mapNotNull { read(it) } }.flowOn(kotlinx.coroutines.Dispatchers.IO)
+        }.map { rows ->
+            val list = rows.mapNotNull { read(it) }
+            val smbStorage = registry.networkStorage().firstOrNull { it.type == SourceType.SMB }
+            if (smbStorage != null) {
+                list.map { cfg ->
+                    if (cfg.type == SourceType.SMB) {
+                        val host = runCatching { java.net.URI(cfg.url).host }.getOrNull()
+                        if (host != null && host in cfg.name) {
+                            val resolved = smbStorage.resolveHostname(host)
+                            if (!resolved.isNullOrBlank() && resolved != host) {
+                                val updated = cfg.copy(name = cfg.name.replace(host, resolved))
+                                dao.upsert(protect(updated.toEntity()))
+                                updated
+                            } else cfg
+                        } else cfg
+                    } else cfg
+                }
+            } else list
+        }.flowOn(kotlinx.coroutines.Dispatchers.IO)
         if (discoveryProviders.isEmpty()) {
             return dbFlow
         }
@@ -205,6 +232,14 @@ private fun SourceConfig.toEntity(): SourceEntity {
     )
 }
 
+/**
+ * 直播仓储实现。
+ *
+ * **What**: 负责频道分组、EPG 电子节目单查询以及直播真实播放流（含鉴权头与备用线路）解析。
+ *
+ * **Why**: 采用 Offline-First 双层缓存策略（内存 + 磁盘快照），保证电视机顶盒或低配设备冷启动秒开、
+ * 弱网/断网环境下仍可立即展示频道列表，后台异步刷新成功后再静默更新。
+ */
 @Singleton
 class DefaultLiveRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -357,6 +392,14 @@ class DefaultLiveRepository @Inject constructor(
     }
 }
 
+/**
+ * 点播仓储实现。
+ *
+ * **What**: 负责点播子源路由、分类检索、分页列表、详情元数据解析以及全源联邦搜索。
+ *
+ * **Why**: 针对低内存设备（LOW 档）与中高端设备按 [DeviceProfile] 动态控制并发抓取上限（Semaphore），
+ * 搜索任务在协程取消时立即向各个数据源下发中断信号，并支持逐源流式增量回调（NDJSON/增量流）。
+ */
 @Singleton
 class DefaultVodRepository @Inject constructor(
     private val registry: SourceRegistry,
@@ -448,6 +491,13 @@ class DefaultVodRepository @Inject constructor(
     }
 }
 
+/**
+ * 存储与目录浏览仓储实现。
+ *
+ * **What**: 负责 SMB、本地存储、USB 移动硬盘等多源目录树遍历、最近目录 LRU 缓存与同目录外挂字幕发现。
+ *
+ * **Why**: 将目录缓存限制在最近 8 个条目以内，避免用户深度遍历多层文件夹时内存泄漏或挤占视频缓冲空间。
+ */
 @Singleton
 class DefaultBrowseRepository @Inject constructor(
     private val registry: SourceRegistry,
@@ -480,6 +530,11 @@ class DefaultBrowseRepository @Inject constructor(
     }
 }
 
+/**
+ * 播放历史仓储实现。
+ *
+ * **What**: 使用 Room [HistoryDao] 持久化各源最近播放记录、时间戳、进度（毫秒）及恢复选集所需的元数据。
+ */
 @Singleton
 class DefaultHistoryRepository @Inject constructor(private val dao: HistoryDao) : HistoryRepository {
     override fun observeRecent(limit: Int): Flow<List<HistoryEntry>> =
@@ -502,6 +557,11 @@ class DefaultHistoryRepository @Inject constructor(private val dao: HistoryDao) 
             JSONObject(extraJson).let { obj -> obj.keys().asSequence().associateWith { obj.getString(it) } })
 }
 
+/**
+ * 收藏夹仓储实现。
+ *
+ * **What**: 管理用户收藏的直播频道、点播影片与目录项目，支持响应式关注状态流。
+ */
 @Singleton
 class DefaultFavoriteRepository @Inject constructor(private val dao: FavoriteDao) : FavoriteRepository {
     override fun observeAll(): Flow<List<FavoriteEntry>> =
@@ -528,6 +588,11 @@ class DefaultFavoriteRepository @Inject constructor(private val dao: FavoriteDao
     override suspend fun delete(id: String) = dao.delete(id)
 }
 
+/**
+ * 全局应用设置仓储实现。
+ *
+ * **What**: 对接 DataStore [SettingsDataSource]，提供解码模式（软解/硬解）、自动帧率切换（AFR）等偏好设置。
+ */
 @Singleton
 class DefaultSettingsRepository @Inject constructor(private val ds: SettingsDataSource) : SettingsRepository {
     override val settings: Flow<AppSettings> = ds.settings

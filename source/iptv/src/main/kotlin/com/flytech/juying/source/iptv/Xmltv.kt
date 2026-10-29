@@ -9,7 +9,14 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import org.xmlpull.v1.XmlPullParser
 
-/** Reads one channel's current/next programmes without retaining the full guide in memory. */
+/**
+ * 针对低内存设备优化的轻量 XMLTV 电子节目单（EPG）流式解析器。
+ *
+ * **What**: 边读边解目标频道的当前与后续节目，内存中不持有完整 EPG DOM 树。
+ *
+ * **Why**: 局域网或公网 XMLTV 文件常达数十甚至上百兆，全量反序列化会直接导致 Low-RAM 盒子 OOM；
+ * 采用 16MiB 消费上限护栏，关闭 DTD / 外部实体解析防 XXE 注入，按需提取当前及未来 48 小时内的有效节目单。
+ */
 internal object Xmltv {
     fun parse(input: InputStream, channelId: String, now: Long): List<EpgProgram> {
         val bounded = object : FilterInputStream(input) {
@@ -35,7 +42,7 @@ internal object Xmltv {
                         start = timestamp(parser.getAttributeValue(null, "start").orEmpty())
                         end = timestamp(parser.getAttributeValue(null, "stop").orEmpty())
                         selected = parser.getAttributeValue(null, "channel") == channelId && start != null && end != null &&
-                            end!! > now && start!! < now + 48 * 60 * 60_000L && end!! > start!!
+                            end > now && start < now + 48 * 60 * 60_000L && end > start
                         title.clear(); titleDepth = -1
                     }
                     "title" -> if (selected && title.isEmpty()) titleDepth = parser.depth

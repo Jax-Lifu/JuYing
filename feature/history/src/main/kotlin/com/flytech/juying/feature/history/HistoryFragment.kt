@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.flytech.juying.core.data.FavoriteRepository
 import com.flytech.juying.core.data.HistoryRepository
@@ -25,6 +26,7 @@ import java.text.DateFormat
 import java.util.Date
 import com.flytech.juying.core.designsystem.R as D
 
+/** 播放历史与继续观看列表 Fragment。 */
 @AndroidEntryPoint
 class HistoryFragment : ViewBindingFragment<FragmentHistoryBinding>(FragmentHistoryBinding::inflate) {
     @Inject lateinit var history: HistoryRepository
@@ -49,6 +51,7 @@ class HistoryFragment : ViewBindingFragment<FragmentHistoryBinding>(FragmentHist
                 } }.setNegativeButton(D.string.ui_cancel, null).show()
         })
         binding.entries.apply { layoutManager = GridLayoutManager(context, if (resources.getBoolean(D.bool.jy_wide)) 3 else 1); adapter = rows; itemAnimator = null }
+        binding.back.setOnClickListener { findNavController().popBackStack() }
         binding.recent.setOnClickListener { showFavorites.value = false }
         binding.favorites.setOnClickListener { showFavorites.value = true }
         binding.clear.setOnClickListener { MaterialAlertDialogBuilder(requireContext()).setMessage(D.string.ui_clear_confirm)

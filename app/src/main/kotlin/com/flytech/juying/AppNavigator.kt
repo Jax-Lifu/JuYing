@@ -22,6 +22,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** 应用层导航路由实现类，装配全局 NavigationController 与跨页面 Intent 跳转。 */
 @Singleton
 class AppNavigator @Inject constructor(private val sources: SourceRepository, private val memory: SourceBrowseMemory) : Navigator {
     override fun openPlayer(context: Context, request: PlayRequest) {
@@ -74,6 +75,7 @@ class AppNavigator @Inject constructor(private val sources: SourceRepository, pr
     }
 }
 
+/** 全局导航接口 [Navigator] 的 Hilt 依赖注入绑定模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class NavigationModule {

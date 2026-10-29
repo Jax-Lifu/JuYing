@@ -16,12 +16,21 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
+/**
+ * 全局网络组件 Hilt 依赖注入模块。
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
     private const val UA = "Mozilla/5.0 (Linux; Android 9) AppleWebKit/537.36 JuYing/0.1"
 
+    /**
+     * 构建全局共享的 [OkHttpClient] 单例。
+     *
+     * **Why**: 根据 [DeviceProfile.tier] 档位动态计算网络预算（LOW: 8MB 缓存/2 空闲连接;
+     * MID: 20MB 缓存/4 空闲连接; HIGH: 50MB 缓存/6 空闲连接），防止低配机空闲连接占满文件描述符或内存。
+     */
     @Provides
     @Singleton
     fun okHttpClient(@ApplicationContext context: Context, profile: DeviceProfile): OkHttpClient {

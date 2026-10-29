@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flytech.juying.core.data.SourceRepository
 import com.flytech.juying.core.model.NetworkStorageDevice
+import com.flytech.juying.core.model.SourceCapability
+import com.flytech.juying.core.model.SourceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -14,14 +16,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import java.net.URI
 import javax.inject.Inject
 
 enum class NasStage { DEVICES, LOGIN, SHARES }
 enum class NasError { SCAN_FAILED, INVALID_ADDRESS, ACCESS_DENIED, CONNECTION_FAILED, INVALID_SHARE }
 
+/**
+ * 局域网网络存储向导 UI 状态实体。
+ */
 data class NasUiState(
     val stage: NasStage = NasStage.DEVICES,
     val devices: List<NetworkStorageDevice> = emptyList(),
+    val connectedDevices: Map<String, String> = emptyMap(),
     val device: NetworkStorageDevice? = null,
     val shares: List<String> = emptyList(),
     val scanning: Boolean = false,
@@ -30,6 +37,7 @@ data class NasUiState(
     val connectedSourceId: String? = null,
 )
 
+/** 局域网网络存储向导 ViewModel。 */
 @HiltViewModel
 class NasViewModel @Inject constructor(private val sources: SourceRepository) : ViewModel() {
     private val state = MutableStateFlow(NasUiState())
@@ -43,18 +51,50 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
     private var password = ""
     private var domain = ""
 
+    init {
+        viewModelScope.launch {
+            sources.observeSources(SourceCapability.BROWSE).collect { configs ->
+                val smbConfigs = configs.filter { it.type == SourceType.SMB }
+                val map = mutableMapOf<String, String>()
+                var knownDevices = state.value.devices
+                smbConfigs.forEach { config ->
+                    val uri = runCatching { URI(config.url) }.getOrNull() ?: return@forEach
+                    val host = uri.host ?: return@forEach
+                    val port = uri.port.takeIf { it != -1 } ?: 445
+                    val hostname = if ("·" in config.name) {
+                        config.name.substringAfterLast("·").trim()
+                    } else config.name
+                    val dev = NetworkStorageDevice(SourceType.SMB, hostname, host, port)
+                    map[dev.host.lowercase()] = config.id
+                    map[address(dev.host, dev.port).lowercase()] = config.id
+                    if (isNamed(hostname)) {
+                        map[hostname.lowercase()] = config.id
+                    }
+                    knownDevices = mergeDevice(knownDevices, dev)
+                }
+                state.update { it.copy(connectedDevices = map, devices = knownDevices) }
+            }
+        }
+    }
+
     fun scan() {
         stopScan()
         val scan = ++scanGeneration
-        state.update { it.copy(devices = emptyList(), scanning = true, error = null) }
+        state.update { current ->
+            val connectedKeys = current.connectedDevices.keys
+            val retained = current.devices.filter { dev ->
+                dev.host.lowercase() in connectedKeys ||
+                    dev.name.lowercase() in connectedKeys ||
+                    address(dev.host, dev.port).lowercase() in connectedKeys
+            }
+            current.copy(devices = retained, scanning = true, error = null)
+        }
         scanJob = viewModelScope.launch {
             try {
                 sources.discoverNetworkStorage().collect { device ->
                     ensureActive()
                     state.update { current ->
-                        val previous = current.devices.find { it.type == device.type && it.host == device.host && it.port == device.port }
-                        val named = previous?.takeIf { device.name == device.host && it.name != it.host } ?: device
-                        current.copy(devices = (current.devices - listOfNotNull(previous) + named).sortedBy { it.name.lowercase() })
+                        current.copy(devices = mergeDevice(current.devices, device))
                     }
                 }
             } catch (e: CancellationException) { throw e
@@ -93,7 +133,12 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
         request {
             val shares = withTimeout(20_000) { sources.networkShares(device, this@NasViewModel.username, this@NasViewModel.password, this@NasViewModel.domain) }
             ensureActive()
-            state.update { it.copy(stage = NasStage.SHARES, shares = shares.distinct().sorted()) }
+            val resolvedName = if (!isNamed(device.name)) {
+                val parsed = runCatching { sources.networkDevice(device.host) }.getOrNull()
+                if (parsed != null && isNamed(parsed.name)) parsed.name else device.name
+            } else device.name
+            val updatedDevice = if (resolvedName != device.name) device.copy(name = resolvedName) else device
+            state.update { it.copy(stage = NasStage.SHARES, device = updatedDevice, shares = shares.distinct().sorted()) }
         }
     }
 
@@ -149,4 +194,47 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
     private fun cancelConnection() { generation++; connectionJob?.cancel(); connectionJob = null; clearCredentials() }
     private fun clearCredentials() { username = ""; password = ""; domain = "" }
     override fun onCleared() { clearCredentials(); super.onCleared() }
+
+    private fun isIpv4(host: String): Boolean {
+        val s = host.trim().removeSurrounding("[", "]")
+        val parts = s.split('.')
+        return parts.size == 4 && parts.all { it.toIntOrNull()?.let { n -> n in 0..255 } == true }
+    }
+
+    private fun isNamed(name: String): Boolean {
+        if (name.isBlank()) return false
+        val s = name.trim().removeSurrounding("[", "]")
+        val parts = s.split('.')
+        if (parts.size == 4 && parts.all { it.toIntOrNull()?.let { n -> n in 0..255 } == true }) return false
+        if (':' in s && s.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' }) return false
+        return true
+    }
+
+    fun connectedSourceIdFor(device: NetworkStorageDevice): String? {
+        val map = state.value.connectedDevices
+        return map[device.host.lowercase()]
+            ?: map[address(device.host, device.port).lowercase()]
+            ?: map[device.name.lowercase()]
+    }
+
+    private fun mergeDevice(current: List<NetworkStorageDevice>, device: NetworkStorageDevice): List<NetworkStorageDevice> {
+        val previous = current.find { existing ->
+            existing.type == device.type && (
+                (existing.host == device.host && existing.port == device.port) ||
+                (isNamed(existing.name) && isNamed(device.name) && existing.name.equals(device.name, ignoreCase = true))
+            )
+        }
+        val winner = when {
+            previous == null -> device
+            isNamed(device.name) && !isNamed(previous.name) -> device
+            isNamed(previous.name) && !isNamed(device.name) -> previous
+            isIpv4(device.host) && !isIpv4(previous.host) -> device
+            isIpv4(previous.host) && !isIpv4(device.host) -> previous
+            else -> device
+        }
+        return (current - listOfNotNull(previous) + winner).sortedBy { it.name.lowercase() }
+    }
+
+    private fun address(host: String, port: Int) =
+        "${if (':' in host && !host.startsWith('[')) "[$host]" else host}:$port"
 }

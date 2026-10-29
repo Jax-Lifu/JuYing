@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
+/** TVBox 订阅配置文件领域模型，包含站点、直播、解析器等。 */
 @Serializable
 data class TvboxConfig(
     val spider: String? = null,
@@ -33,6 +34,7 @@ data class TvboxSite(
     val header: JsonElement? = null,
 )
 
+/** TVBox 配置中声明的直播源定义。 */
 @Serializable
 data class TvboxLive(
     val name: String = "",
@@ -43,6 +45,7 @@ data class TvboxLive(
     val ua: String? = null,
 )
 
+/** TVBox 配置中声明的嗅探/JSON 播放解析器定义。 */
 @Serializable
 data class TvboxParse(
     val name: String = "",
@@ -55,9 +58,11 @@ data class TvboxParse(
 @Serializable
 data class TvboxRepoList(val urls: List<TvboxRepoEntry> = emptyList())
 
+/** TVBox 多仓仓库子项配置定义。 */
 @Serializable
 data class TvboxRepoEntry(val url: String = "", val name: String = "")
 
+/** TVBox 配置解码与解析器（支持 Base64、2423 CBC 及相对路径）。 */
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 object TvboxConfigParser {
 

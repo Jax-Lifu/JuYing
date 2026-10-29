@@ -65,6 +65,7 @@ interface SearchableSource : SourceProvider {
     }
 }
 
+/** 直播数据源能力契约。 */
 interface LiveSource : SourceProvider {
     suspend fun channels(config: SourceConfig): List<ChannelGroup>
 
@@ -86,6 +87,7 @@ interface LiveSource : SourceProvider {
     }
 }
 
+/** 点播数据源能力契约。 */
 interface VodSource : SearchableSource {
     /** 复合源（如 TVBox 单仓多站点、网盘多挂载点）可返回子源列表；单站点源默认返回空列表。 */
     suspend fun subSources(config: SourceConfig): List<SubSource> = emptyList()
@@ -104,12 +106,37 @@ interface VodSource : SearchableSource {
     suspend fun resolve(config: SourceConfig, episodeRef: String): PlayItem
 }
 
+/**
+ * 目录与存储浏览型数据源（SMB、本地存储、USB 移动存储、NFS、WebDAV 等）。
+ *
+ * **What**: 提供树状文件目录遍历能力，并将可播放的媒体文件转换为带有可选外挂字幕的 [PlayItem]。
+ */
 interface BrowseSource : SourceProvider {
+
+    /**
+     * 读取指定相对路径下的文件与子目录列表。
+     *
+     * @param config 存储源配置
+     * @param path 相对目录路径（根目录传入空字符串 `""`）
+     * @return 目录内的文件条目列表
+     */
     suspend fun list(config: SourceConfig, path: String): List<FileEntry>
+
+    /**
+     * 将文件条目转换为播放项。
+     *
+     * @param config 存储源配置
+     * @param entry 目标媒体文件条目
+     * @return 对应的播放项
+     */
     fun playItem(config: SourceConfig, entry: FileEntry): PlayItem
 
     /**
      * 生成携带同目录外挂字幕的 [PlayItem]（适用于 SMB、WebDAV、NFS、网盘、Alist、本地存储、移动存储、UPnP）。
+     *
+     * @param config 存储源配置
+     * @param entry 目标媒体文件
+     * @param siblings 同目录下的所有平级文件条目（用于字幕匹配）
      */
     fun playItem(config: SourceConfig, entry: FileEntry, siblings: List<FileEntry>): PlayItem {
         val base = playItem(config, entry)

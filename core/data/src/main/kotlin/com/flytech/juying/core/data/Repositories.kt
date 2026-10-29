@@ -17,6 +17,7 @@ import com.flytech.juying.core.model.VodDetail
 import com.flytech.juying.core.model.VodItem
 import kotlinx.coroutines.flow.Flow
 
+/** 数据源仓储契约：管理所有持久化与动态发现源，支持测试连接与能力查询。 */
 interface SourceRepository {
     /** Scan on demand; stopping collection cancels discovery. Devices are not persisted. */
     fun discoverNetworkStorage(): Flow<com.flytech.juying.core.model.NetworkStorageDevice> = kotlinx.coroutines.flow.emptyFlow()
@@ -40,6 +41,7 @@ interface SourceRepository {
     suspend fun check(config: SourceConfig): Int = error("Connection check unavailable")
 }
 
+/** 直播仓储契约：频道分组、EPG 节目单与多线路签名播放项解析。 */
 interface LiveRepository {
     /** offline-first：先发出缓存，再发出刷新结果。 */
     fun channelGroups(sourceId: String): Flow<List<ChannelGroup>>
@@ -49,6 +51,7 @@ interface LiveRepository {
     suspend fun resolve(sourceId: String, channel: Channel): PlayItem
 }
 
+/** 点播仓储契约：子源管理、分类、分页列表与全源并发搜索。 */
 interface VodRepository {
     /** 获取复合数据源的子源列表（如 TVBox 单仓内的多个 Spider 站点、网盘多挂载点）。 */
     suspend fun subSources(sourceId: String): List<SubSource>
@@ -67,11 +70,13 @@ interface VodRepository {
     suspend fun resolve(sourceId: String, episodeRef: String): PlayItem
 }
 
+/** 存储浏览仓储契约：多层目录遍历与同目录外挂字幕发现。 */
 interface BrowseRepository {
     suspend fun list(sourceId: String, path: String): List<FileEntry>
     suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem
 }
 
+/** 历史记录仓储契约：播放时间戳、进度与续播元数据持久化。 */
 interface HistoryRepository {
     fun observeRecent(limit: Int = 50): Flow<List<HistoryEntry>>
     suspend fun get(id: String): HistoryEntry?
@@ -80,6 +85,7 @@ interface HistoryRepository {
     suspend fun clear()
 }
 
+/** 收藏夹仓储契约：用户收藏条目增删与监听。 */
 interface FavoriteRepository {
     fun observeAll(): Flow<List<FavoriteEntry>>
     fun observeIsFavorite(id: String): Flow<Boolean>
@@ -87,6 +93,7 @@ interface FavoriteRepository {
     suspend fun delete(id: String)
 }
 
+/** 应用设置仓储契约：解码器偏好、自动帧率切换等。 */
 interface SettingsRepository {
     val settings: Flow<AppSettings>
     suspend fun setDecoderMode(mode: DecoderMode)

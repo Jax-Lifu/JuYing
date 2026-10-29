@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.flytech.juying.core.ui.databinding.ItemMediaRowBinding
 
+/** 媒体行列表展示项数据实体。 */
 data class MediaRow(val id: String, val title: String, val subtitle: String = "",
     val icon: Int = com.flytech.juying.core.designsystem.R.drawable.ic_play,
     val selected: Boolean = false, val progress: Int? = null)
@@ -19,6 +20,7 @@ class MediaRowAdapter(private val onClick: (MediaRow) -> Unit,
         override fun areItemsTheSame(a: MediaRow, b: MediaRow) = a.id == b.id
         override fun areContentsTheSame(a: MediaRow, b: MediaRow) = a == b
     }) {
+    /** 列表项 ViewHolder 缓存载体。 */
     class Holder(val binding: ItemMediaRowBinding) : RecyclerView.ViewHolder(binding.root)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         Holder(ItemMediaRowBinding.inflate(LayoutInflater.from(parent.context), parent, false))

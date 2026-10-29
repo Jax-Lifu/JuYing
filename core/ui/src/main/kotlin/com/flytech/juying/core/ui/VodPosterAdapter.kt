@@ -13,11 +13,13 @@ import com.flytech.juying.core.designsystem.R as D
 /** 点播和跨源搜索共用海报；来源标签随列表提交，避免异步结果串站。 */
 data class VodPoster(val item: VodItem, val caption: String = item.remarks.orEmpty())
 
+/** 点播竖版海报网格 RecyclerView 适配器。 */
 class VodPosterAdapter(private val carousel: Boolean = false, private val onClick: (VodItem) -> Unit) :
     ListAdapter<VodPoster, VodPosterAdapter.Holder>(object : DiffUtil.ItemCallback<VodPoster>() {
         override fun areItemsTheSame(a: VodPoster, b: VodPoster) = a.item.sourceId == b.item.sourceId && a.item.id == b.item.id
         override fun areContentsTheSame(a: VodPoster, b: VodPoster) = a == b
     }) {
+    /** 列表项 ViewHolder 缓存载体。 */
     class Holder(val binding: ItemVodPosterBinding) : RecyclerView.ViewHolder(binding.root)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         Holder(ItemVodPosterBinding.inflate(LayoutInflater.from(parent.context), parent, false).apply {

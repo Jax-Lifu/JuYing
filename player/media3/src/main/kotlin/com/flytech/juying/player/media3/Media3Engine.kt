@@ -37,6 +37,17 @@ import kotlinx.coroutines.flow.update
 import timber.log.Timber
 
 @UnstableApi
+/**
+ * 基于 AndroidX Media3 (ExoPlayer) 的高性能原生播放引擎实现。
+ *
+ * **What**: 负责多媒体流准备、硬件解码（SurfaceView 绑定）、自适应缓冲、字幕渲染、
+ * 轨道控制（音轨/字幕/多清晰度）以及软硬解切换。
+ *
+ * **Why**: 深度针对低配 Android TV 优化：
+ * 1. 缓冲策略由 [DeviceProfile.tier] 动态驱动（LOW 档设严格的 24MB 缓冲与低回退门槛，防止 OOM）；
+ * 2. 严格遵循原生单播放器生命周期，离开页面立即 release 硬件解码器与底层音频会话；
+ * 3. 避免将高频进度推入 Flow，仅向 UI 暴露轻量状态。
+ */
 class Media3Engine(
     context: Context,
     profile: DeviceProfile,

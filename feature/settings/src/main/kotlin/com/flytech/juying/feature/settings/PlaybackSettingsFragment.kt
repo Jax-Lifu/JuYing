@@ -14,6 +14,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 import com.flytech.juying.core.designsystem.R as D
 
+/** 播放核心偏好设置 Fragment（软硬解切换、AFR）。 */
 @AndroidEntryPoint
 class PlaybackSettingsFragment : ViewBindingFragment<FragmentPlaybackSettingsBinding>(FragmentPlaybackSettingsBinding::inflate) {
     @Inject lateinit var settings: SettingsRepository

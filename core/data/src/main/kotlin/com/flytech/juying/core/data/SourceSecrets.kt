@@ -11,7 +11,14 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** 来源地址也可能带令牌。字段与记录绑定加密，密钥仅在首次后台读写时加载。 */
+/**
+ * 数据源凭据安全加密组件（AndroidKeyStore + AES-GCM）。
+ *
+ * **What**: 对数据源敏感信息（访问密码、包含凭据的 URL 令牌等）进行硬件隔离加密存储。
+ *
+ * **Why**: 避免密码或认证 Cookie 明文持久化到 Room 数据库或在备份/导出时泄露。
+ * 加密使用 AES/GCM/NoPadding，AAD 绑定字段名（如 "password"），防止跨字段密文篡改伪造。
+ */
 @Singleton
 class SourceSecrets @Inject constructor() {
     private val key: SecretKey by lazy {

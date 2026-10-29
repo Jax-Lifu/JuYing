@@ -18,6 +18,7 @@ import com.flytech.juying.core.ui.ViewBindingFragment
 import com.flytech.juying.feature.search.databinding.FragmentSearchBinding
 import dagger.hilt.android.AndroidEntryPoint
 
+/** 全源聚合搜索界面 Fragment，支持增量加载与快速检索。 */
 @AndroidEntryPoint
 class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearchBinding::inflate) {
     private val vm: SearchViewModel by viewModels()
@@ -40,7 +41,8 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
         binding.more.setOnClickListener { vm.more() }
         launchOnStarted { vm.ui.collect { state ->
             binding.progress.isVisible = state.loading
-            binding.status.text = if (state.keyword.isEmpty()) getString(R.string.search_hint)
+            binding.status.isVisible = state.keyword.isNotEmpty()
+            binding.status.text = if (state.keyword.isEmpty()) ""
                 else getString(R.string.search_progress, state.targets.values.count { it != null }, state.targets.size, state.posters.size)
             val failures = state.targets.filterValues { it == SearchOutcome.FAILED || it == SearchOutcome.TIMED_OUT }
             binding.failures.isVisible = state.failed || failures.isNotEmpty()

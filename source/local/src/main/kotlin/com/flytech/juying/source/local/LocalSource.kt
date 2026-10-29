@@ -27,6 +27,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
+/**
+ * 本机存储与外接存储浏览数据源实现。
+ *
+ * **What**: 支持直接文件系统路径（`file://`，通过 Android 11+ MANAGE_EXTERNAL_STORAGE 或 Android 9/10 READ_EXTERNAL_STORAGE）
+ * 以及 Storage Access Framework（SAF 授权的 `content://` 目录树）遍历与媒体读取。
+ *
+ * **Why**: 用户无需频繁唤起系统文件选择器，在应用内即可完成目录导航与外挂字幕加载。
+ */
 class LocalSource @Inject constructor(
     @ApplicationContext private val context: Context,
     @Dispatcher(JuyingDispatchers.IO) private val ioDispatcher: CoroutineDispatcher,
@@ -86,10 +94,12 @@ class LocalSource @Inject constructor(
     )
 }
 
+/** USB 移动存储热插拔浏览数据源实现。 */
 class UsbStorageSource @Inject constructor(source: LocalSource) : BrowseSource by source {
     override val type = SourceType.USB_STORAGE
 }
 
+/** 本地存储与 USB 存储数据源的 Hilt 注入模块。 */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class LocalModule {
