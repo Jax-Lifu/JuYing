@@ -1,8 +1,12 @@
 package com.flytech.juying.core.ui
 
+import android.graphics.Outline
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.widget.ImageView
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -23,6 +27,17 @@ class VodPosterAdapter(private val carousel: Boolean = false, private val onClic
     class Holder(val binding: ItemVodPosterBinding) : RecyclerView.ViewHolder(binding.root)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         Holder(ItemVodPosterBinding.inflate(LayoutInflater.from(parent.context), parent, false).apply {
+            val radius = root.resources.getDimension(D.dimen.jy_radius)
+            val outline = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, radius)
+                }
+            }
+            root.outlineProvider = outline
+            root.clipToOutline = true
+            cover.outlineProvider = outline
+            cover.clipToOutline = true
+
             if (carousel) {
                 val height = parent.resources.getDimensionPixelSize(D.dimen.jy_poster_carousel_height)
                 root.layoutParams.width = height * 4 / 5 + root.paddingLeft + root.paddingRight
@@ -35,6 +50,7 @@ class VodPosterAdapter(private val carousel: Boolean = false, private val onClic
         with(holder.binding) {
             title.text = poster.item.title
             caption.text = poster.caption
+            caption.isVisible = poster.caption.isNotBlank()
             cover.loadImage(poster.item.cover)
             root.contentDescription = listOf(poster.item.title, poster.caption).filter { it.isNotBlank() }.joinToString("，")
             root.setOnClickListener { onClick(poster.item) }

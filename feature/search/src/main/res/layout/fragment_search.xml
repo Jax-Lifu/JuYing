@@ -1,19 +1,152 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="@dimen/jy_padding" android:background="?attr/jy_background">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" >
-<androidx.appcompat.widget.AppCompatButton android:id="@+id/back" android:drawableStart="@drawable/ic_back" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/content_back" />
-<TextView style="@style/JyTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="@dimen/jy_padding" android:text="@string/search_title"/>
-</LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginTop="@dimen/jy_padding">
-<EditText android:id="@+id/query" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="@dimen/jy_content_gap" android:minHeight="@dimen/jy_touch_height" android:paddingHorizontal="16dp" android:paddingVertical="10dp" android:background="@drawable/bg_toolbar_action" android:drawableStart="@drawable/ic_search" android:drawablePadding="10dp" android:drawableTint="?attr/jy_on_surface_secondary" android:maxLines="1" android:inputType="text" android:imeOptions="actionSearch|flagNoFullscreen" android:hint="@string/search_hint" android:contentDescription="@string/search_hint" android:textColor="?attr/jy_on_surface" android:textColorHint="?attr/jy_on_surface_secondary"/>
-<androidx.appcompat.widget.AppCompatButton android:id="@+id/submit" android:drawableStart="@drawable/ic_search" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/content_search" />
-</LinearLayout>
-<TextView android:id="@+id/catalogNote" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" android:text="@string/search_catalog_note"/>
-<ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true"/>
-<TextView android:id="@+id/status" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="@dimen/jy_content_gap" android:accessibilityLiveRegion="polite"/>
-<TextView android:id="@+id/failures" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end"/>
-<androidx.recyclerview.widget.RecyclerView android:id="@+id/posters" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" >
-<androidx.appcompat.widget.AppCompatButton android:id="@+id/retry" android:drawableStart="@drawable/ic_search" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/content_retry" />
-<androidx.appcompat.widget.AppCompatButton android:id="@+id/more" android:drawableStart="@drawable/ic_expand" style="@style/JyAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/content_more" android:layout_marginStart="@dimen/jy_content_gap"/>
-</LinearLayout>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="@dimen/jy_padding"
+    android:background="?attr/jy_background">
+
+    <!-- 单行搜索栏：返回 + 搜索框 + 搜索按钮，节省 TV 纵向高度 -->
+    <LinearLayout
+        android:id="@+id/searchBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/back"
+            style="@style/JyAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_back"
+            android:nextFocusRight="@+id/query"
+            android:nextFocusDown="@+id/posters"
+            android:text="@string/content_back" />
+
+        <EditText
+            android:id="@+id/query"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/jy_content_gap"
+            android:layout_marginEnd="@dimen/jy_content_gap"
+            android:minHeight="@dimen/jy_touch_height"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:background="@drawable/bg_toolbar_action"
+            android:drawableStart="@drawable/ic_search"
+            android:drawablePadding="10dp"
+            android:drawableTint="?attr/jy_on_surface_secondary"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:inputType="text"
+            android:imeOptions="actionSearch|flagNoFullscreen"
+            android:hint="@string/search_hint"
+            android:contentDescription="@string/search_hint"
+            android:textColor="?attr/jy_on_surface"
+            android:textColorHint="?attr/jy_on_surface_secondary"
+            android:nextFocusLeft="@+id/back"
+            android:nextFocusRight="@+id/submit"
+            android:nextFocusDown="@+id/posters" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/submit"
+            style="@style/JyAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_search"
+            android:nextFocusLeft="@+id/query"
+            android:nextFocusDown="@+id/posters"
+            android:text="@string/content_search" />
+    </LinearLayout>
+
+    <!-- 拼音首字母 / 视频联想建议词条（如输入 wwd 弹出 汪汪队立大功 等） -->
+    <HorizontalScrollView
+        android:id="@+id/suggestScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:visibility="gone"
+        android:layout_marginTop="6dp">
+
+        <LinearLayout
+            android:id="@+id/suggestContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/status"
+        style="@style/JyBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="4dp"
+        android:visibility="gone"
+        android:accessibilityLiveRegion="polite" />
+
+    <!-- 搜索结果海报网格 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/posters"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:nextFocusUp="@+id/query" />
+
+    <!-- 找不到结果 / 失败重试专区（仅在零结果时展示，不与正常海报同时出现） -->
+    <LinearLayout
+        android:id="@+id/emptyContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_search"
+            android:tint="?attr/jy_on_surface_secondary"
+            android:alpha="0.4"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/emptyTitle"
+            style="@style/JyTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/search_empty" />
+
+        <TextView
+            android:id="@+id/emptySubtext"
+            style="@style/JyBody"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="?attr/jy_on_surface_secondary"
+            android:text="@string/search_empty_hint" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/retry"
+            style="@style/JyAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:drawableStart="@drawable/ic_search"
+            android:nextFocusUp="@+id/query"
+            android:text="@string/content_retry"
+            android:visibility="gone" />
+    </LinearLayout>
 </LinearLayout>

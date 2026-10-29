@@ -207,7 +207,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.speed.text = "${vm.playbackSpeed()}×"
         binding.lines.isVisible = s.webPage == null && vm.availableLines().size > 1
         binding.channels.isVisible = s.isLive
-        binding.episodes.isVisible = !vm.currentRequest?.extra?.get("itemId").isNullOrEmpty()
+        binding.episodes.isVisible = s.episodes.isNotEmpty() || !vm.currentRequest?.extra?.get("itemId").isNullOrEmpty()
         binding.duration.isVisible = !s.isLive && s.webPage == null
         binding.programme.isVisible = s.isLive
         binding.programmeProgress.isVisible = s.isLive && programmes.isNotEmpty()

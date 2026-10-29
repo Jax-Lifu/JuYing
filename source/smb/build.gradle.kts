@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.dcerpc)
     implementation(libs.media3.common)
     implementation(libs.media3.datasource)
+    implementation(libs.coil)
     testImplementation("org.robolectric:robolectric:4.16.1")
 }
 

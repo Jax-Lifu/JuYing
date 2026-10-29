@@ -6,4 +6,7 @@
     <string name="search_failures">未成功：%1$s</string>
     <string name="search_failed_label">失败</string>
     <string name="search_timeout_label">超时</string>
+    <string name="search_empty">未找到相关影视结果</string>
+    <string name="search_empty_failed">部分站点请求超时或未响应，可点击重试</string>
+    <string name="search_empty_hint">请尝试更换片名、关键词或拼音首字母</string>
 </resources>

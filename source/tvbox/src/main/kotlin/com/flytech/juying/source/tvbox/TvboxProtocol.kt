@@ -90,7 +90,7 @@ internal data class TvboxVideo(
             PlayGroup(group.name, group.episodes.mapIndexed { index, episode ->
                 Episode(episode.name, TvboxEpisodeRef(
                     TvboxItemRef(siteKey, id), group.name, episode.name, index,
-                ).encode())
+                ).encode(), cover = cover)
             })
         },
     )

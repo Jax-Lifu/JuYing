@@ -12,9 +12,13 @@ import androidx.core.view.isVisible
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.flytech.juying.core.data.SourceBrowseMemory
 import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
+import com.flytech.juying.core.model.SidecarCovers
+import com.flytech.juying.core.ui.FocusTarget
+import com.flytech.juying.core.ui.findFirstFocusable
 import com.flytech.juying.core.ui.MediaRow
 import com.flytech.juying.core.ui.MediaRowAdapter
 import com.flytech.juying.core.ui.Navigator
@@ -29,13 +33,37 @@ import com.flytech.juying.core.designsystem.R as D
 
 /** 文件与存储目录树浏览 Fragment。 */
 @AndroidEntryPoint
-class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowseBinding::inflate) {
+class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowseBinding::inflate), FocusTarget {
     private val vm: BrowseViewModel by viewModels()
     @Inject lateinit var navigator: Navigator
     @Inject lateinit var memory: SourceBrowseMemory
     private val storageChanges = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { vm.retry() }
     }
+
+    override fun requestPrimaryFocus(): Boolean {
+        if (!isAdded || view == null) return false
+        val candidate = binding.files.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.directoryNavigation.breadcrumbs.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.directoryNavigation.parent.takeIf { it.isVisible && it.isEnabled }
+            ?: binding.addNas.takeIf { it.isVisible }
+            ?: binding.grantStorage.takeIf { it.isVisible }
+        if (candidate != null) {
+            if (candidate is RecyclerView) {
+                val first = candidate.findViewHolderForAdapterPosition(0)?.itemView ?: candidate.getChildAt(0)
+                if (first != null && first.requestFocus()) return true
+                candidate.scrollToPosition(0)
+                candidate.post {
+                    candidate.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        ?: candidate.getChildAt(0)?.requestFocus()
+                }
+                return true
+            }
+            if (candidate.requestFocus()) return true
+        }
+        return binding.root.findFirstFocusable()?.requestFocus() == true
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         parentFragmentManager.setFragmentResultListener(Navigator.STORAGE_ACCESS_RESULT, viewLifecycleOwner) { _, _ ->
             if (vm.ui.value.canRequestStorageAccess) vm.retry()
@@ -104,11 +132,15 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
                 if (it.isDirectory) getString(R.string.browse_open_folder) else if (it.isVideo) getString(R.string.browse_play_file,
                     if (it.size > 0) Formatter.formatFileSize(requireContext(), it.size) else getString(D.string.ui_file_unknown))
                 else getString(R.string.browse_file_info),
-                if (it.isDirectory) D.drawable.ic_files else if (it.isVideo) D.drawable.ic_film else R.drawable.ic_document) }) {
+                if (it.isDirectory) D.drawable.ic_files else if (it.isVideo) D.drawable.ic_film else R.drawable.ic_document,
+                cover = if (it.isVideo) SidecarCovers.findCover(it, state.files) else null) }) {
                 if (!fileList.isAttachedToWindow || vm.ui.value.source != state.source || vm.ui.value.path != state.path || vm.ui.value.showRoots != state.showRoots) return@submitList
                 if (!state.loading) state.source?.let { source ->
                     val index = memory.get(source.id, "scroll.${state.path}").toIntOrNull() ?: 0
                     manager.scrollToPosition(index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0)))
+                }
+                if (isResumed && !binding.root.hasFocus()) {
+                    requestPrimaryFocus()
                 }
             }
         } }

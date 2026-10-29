@@ -405,6 +405,7 @@ class DefaultVodRepository @Inject constructor(
     private val registry: SourceRegistry,
     private val sources: SourceRepository,
     private val deviceProfile: DeviceProfile,
+    private val suggestService: SearchSuggestService? = null,
 ) : VodRepository {
     private suspend fun <T> withSource(id: String, block: suspend (SourceConfig, com.flytech.juying.source.api.VodSource) -> T): T {
         val c = sources.get(id) ?: error("数据源不存在: $id")
@@ -421,6 +422,7 @@ class DefaultVodRepository @Inject constructor(
         withSource(sourceId) { c, s -> s.listPage(c, categoryId, page) }
     override suspend fun detail(sourceId: String, itemId: String): VodDetail =
         withSource(sourceId) { c, s -> s.detail(c, itemId) }
+    override suspend fun suggestions(query: String): List<String> = suggestService?.suggest(query).orEmpty()
     override suspend fun search(sourceId: String, keyword: String, page: Int): List<VodItem> {
         val c = sources.get(sourceId) ?: error("数据源不存在: $sourceId")
         return registry.searchable(c.type).search(c, keyword, page)
@@ -432,6 +434,14 @@ class DefaultVodRepository @Inject constructor(
     override fun searchUpdates(keyword: String, page: Int): Flow<SearchUpdate> = channelFlow {
         require(page >= 1)
         if (keyword.isBlank()) return@channelFlow
+        val trimmed = keyword.trim()
+        val isPinyin = trimmed.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() }
+        val searchKeywords = if (isPinyin && trimmed.length >= 2) {
+            val suggestions = runCatching { suggestService?.suggest(trimmed)?.take(2).orEmpty() }.getOrDefault(emptyList())
+            (listOf(trimmed) + suggestions).distinct()
+        } else {
+            listOf(trimmed)
+        }
         val permits = when (deviceProfile.tier) {
             PerformanceTier.LOW -> LOW_SEARCH_CONCURRENCY
             PerformanceTier.MID -> MID_SEARCH_CONCURRENCY
@@ -462,12 +472,22 @@ class DefaultVodRepository @Inject constructor(
             targets.forEach { target -> launch {
                 val result = semaphore.withPermit {
                     try {
-                        val items = withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
-                            if (provider is VodSource) provider.search(config, keyword.trim(), page, target.subSource?.id)
-                            else provider.search(config, keyword.trim(), page)
+                        val collected = mutableListOf<VodItem>()
+                        var hasSuccess = false
+                        for (kw in searchKeywords) {
+                            val items = runCatching {
+                                withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
+                                    if (provider is VodSource) provider.search(config, kw, page, target.subSource?.id)
+                                    else provider.search(config, kw, page)
+                                }
+                            }.getOrNull()
+                            if (items != null) {
+                                hasSuccess = true
+                                collected.addAll(items)
+                            }
                         }
-                        SearchUpdate.Finished(target, if (items == null) SearchOutcome.TIMED_OUT else SearchOutcome.SUCCESS,
-                            items.orEmpty())
+                        val outcome = if (hasSuccess) SearchOutcome.SUCCESS else SearchOutcome.FAILED
+                        SearchUpdate.Finished(target, outcome, collected.distinctBy { it.id })
                     } catch (error: Exception) {
                         if (error is CancellationException) throw error
                         Timber.w("Source search failed: %s", error.javaClass.simpleName)

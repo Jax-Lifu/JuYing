@@ -21,6 +21,7 @@ data class Episode(
     val ref: String,
     /** 旧播放引用仅用于恢复历史选集；发起新的播放请求始终使用 ref。 */
     val legacyRefs: List<String> = emptyList(),
+    val cover: String? = null,
 )
 
 /** 点播播放线路分组，包含线路名称与该线路下的分集列表。 */

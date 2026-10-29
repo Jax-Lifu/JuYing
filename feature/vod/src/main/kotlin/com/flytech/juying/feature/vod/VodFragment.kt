@@ -20,13 +20,35 @@ import dagger.hilt.android.AndroidEntryPoint
 
 /** 点播分类与瀑布流推荐页面 Fragment。 */
 @AndroidEntryPoint
-class VodFragment : ViewBindingFragment<FragmentVodBinding>(FragmentVodBinding::inflate) {
+class VodFragment : ViewBindingFragment<FragmentVodBinding>(FragmentVodBinding::inflate), FocusTarget {
     private val vm: VodViewModel by viewModels()
     @Inject lateinit var navigator: Navigator
     @Inject lateinit var memory: SourceBrowseMemory
     private var restoredSite: String? = null
     private var restoredCategory: String? = null
     private var restoredScroll: String? = null
+
+    override fun requestPrimaryFocus(): Boolean {
+        if (!isAdded || view == null) return false
+        val candidate = binding.posters.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.categories.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.allCategories.takeIf { it.isVisible }
+        if (candidate != null) {
+            if (candidate is RecyclerView) {
+                val first = candidate.findViewHolderForAdapterPosition(0)?.itemView ?: candidate.getChildAt(0)
+                if (first != null && first.requestFocus()) return true
+                candidate.scrollToPosition(0)
+                candidate.post {
+                    candidate.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        ?: candidate.getChildAt(0)?.requestFocus()
+                }
+                return true
+            }
+            if (candidate.requestFocus()) return true
+        }
+        return binding.root.findFirstFocusable()?.requestFocus() == true
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val posters = VodPosterAdapter { navigator.openVodDetail(this, it.sourceId, it.id) }
@@ -158,6 +180,9 @@ class VodFragment : ViewBindingFragment<FragmentVodBinding>(FragmentVodBinding::
                     }
                 }
                 posterList.doOnLayout { preloadNextPage(posterList) }
+                if (isResumed && !binding.root.hasFocus()) {
+                    requestPrimaryFocus()
+                }
               }
             }
             if (state.items.isEmpty() && !state.loading && !state.failed && state.hasMore) {

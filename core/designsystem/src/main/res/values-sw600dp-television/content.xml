@@ -1,6 +1,9 @@
 <resources>
     <dimen name="jy_touch_height">56dp</dimen>
-    <dimen name="jy_poster_height">120dp</dimen>
+    <dimen name="jy_poster_height">260dp</dimen>
+    <dimen name="jy_poster_carousel_height">260dp</dimen>
+    <dimen name="jy_detail_cover_width">200dp</dimen>
+    <dimen name="jy_detail_cover_height">280dp</dimen>
     <integer name="jy_vod_columns">5</integer>
     <integer name="jy_episode_columns">4</integer>
 </resources>

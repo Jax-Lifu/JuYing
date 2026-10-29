@@ -24,9 +24,45 @@ data class FileEntry(
     val isSubtitle: Boolean
         get() = !isDirectory && extension in SUBTITLE_EXTENSIONS
 
+    val isImage: Boolean
+        get() = !isDirectory && (mimeType?.startsWith("image/") == true || extension in IMAGE_EXTENSIONS)
+
     companion object {
         val VIDEO_EXTENSIONS = setOf("mp4", "mkv", "avi", "mov", "flv", "ts", "m2ts", "webm", "rmvb", "wmv", "m4v", "mpg", "mpeg")
         val SUBTITLE_EXTENSIONS = setOf("srt", "ass", "ssa", "vtt", "sub")
+        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+    }
+}
+
+/**
+ * 跨数据源通用的同目录视频封面 / 缩略图自动匹配器。
+ *
+ * 匹配优先级：
+ * 1. 同名或同前缀专属图片（如 `movie.jpg`、`movie-thumb.jpg`）。
+ * 2. 回传视频本身的 [uri]，由视频截帧器异步抽取首帧作为缩略图。
+ *
+ * 注意：不要把目录级 folder/poster/fanart 赋给每一个子集视频，否则同一个目录下几十集视频全部显示同一张巨幅背景图，极其难看重复。
+ */
+object SidecarCovers {
+
+    fun findCover(
+        video: FileEntry,
+        siblings: List<FileEntry>,
+    ): String? {
+        if (!video.isVideo) return null
+        val baseName = video.name.substringBeforeLast('.', video.name).lowercase()
+
+        // 1. 同名或前缀专属图片
+        val direct = siblings.firstOrNull { file ->
+            if (!file.isImage) return@firstOrNull false
+            val subBase = file.name.substringBeforeLast('.', "").lowercase()
+            subBase == baseName || subBase.startsWith("$baseName-thumb") ||
+                subBase.startsWith("$baseName.thumb") || subBase.startsWith("$baseName-poster")
+        }
+        if (direct?.uri != null) return direct.uri
+
+        // 2. 回传视频自身 URI 触发帧抽取，保证每集拥有真实独立的画面缩略图
+        return video.uri
     }
 }
 

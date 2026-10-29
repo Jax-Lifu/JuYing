@@ -4,6 +4,7 @@ import android.view.SurfaceView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flytech.juying.core.data.HistoryRepository
+import com.flytech.juying.core.data.BrowseRepository
 import com.flytech.juying.core.data.VodRepository
 import com.flytech.juying.core.model.Episode
 import com.flytech.juying.core.domain.GetPlayItemUseCase
@@ -68,6 +69,7 @@ class PlayerViewModel @Inject constructor(
     private val history: HistoryRepository,
     private val playback: PlaybackManager,
     private val vod: VodRepository,
+    private val browse: BrowseRepository? = null,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(PlayerUiState())
@@ -168,6 +170,17 @@ class PlayerViewModel @Inject constructor(
                             e.prepare(nextItem)
                         } else {
                             _ui.value = _ui.value.copy(playback = s, loading = s.isBuffering, error = s.error)
+                            if (s.ended && !_ui.value.isLive) {
+                                val currentReq = request
+                                val episodeRef = currentReq?.ref
+                                val currentIndex = _ui.value.episodes.indexOfFirst {
+                                    episodeRef != null && (it.ref == episodeRef || episodeRef in it.legacyRefs)
+                                }
+                                if (currentIndex in 0 until _ui.value.episodes.lastIndex) {
+                                    Timber.i("Playback ended, auto-advancing to next episode: %d -> %d", currentIndex, currentIndex + 1)
+                                    selectEpisode(currentIndex + 1)
+                                }
+                            }
                         }
                     }
                 }
@@ -210,30 +223,60 @@ class PlayerViewModel @Inject constructor(
 
     fun refreshEpisodes() {
         val req = request ?: return
-        val itemId = req.extra["itemId"]?.takeIf { it.isNotBlank() } ?: return
-        if (req.kind != PlayKind.VOD) return
-        val key = req.sourceId to itemId
-        if (episodeKey == key && cachedEpisodes.any { it.ref == req.ref || req.ref in it.legacyRefs }) {
-            _ui.value = _ui.value.copy(episodes = cachedEpisodes)
-            return
-        }
-        episodeJob?.cancel()
-        episodeJob = viewModelScope.launch {
-            try {
-                val detail = vod.detail(req.sourceId, itemId)
-                ensureActive()
-                if (request != req) return@launch
-                // Stay on the active site's line; matching by title can jump to another source.
-                cachedEpisodes = detail.playGroups.firstOrNull { group ->
-                    group.episodes.any { it.ref == req.ref || req.ref in it.legacyRefs }
-                }?.episodes.orEmpty()
-                episodeKey = key
-                _ui.value = _ui.value.copy(episodes = cachedEpisodes, episodeError = false)
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) {
-                if (request == req) _ui.value = _ui.value.copy(episodeError = true)
-                Timber.w("Episode list failed: %s", e.javaClass.simpleName)
+        when (req.kind) {
+            PlayKind.VOD -> {
+                val itemId = req.extra["itemId"]?.takeIf { it.isNotBlank() } ?: return
+                val key = req.sourceId to itemId
+                if (episodeKey == key && cachedEpisodes.any { it.ref == req.ref || req.ref in it.legacyRefs }) {
+                    _ui.value = _ui.value.copy(episodes = cachedEpisodes)
+                    return
+                }
+                episodeJob?.cancel()
+                episodeJob = viewModelScope.launch {
+                    try {
+                        val detail = vod.detail(req.sourceId, itemId)
+                        ensureActive()
+                        if (request != req) return@launch
+                        cachedEpisodes = detail.playGroups.firstOrNull { group ->
+                            group.episodes.any { it.ref == req.ref || req.ref in it.legacyRefs }
+                        }?.episodes.orEmpty()
+                        episodeKey = key
+                        _ui.value = _ui.value.copy(episodes = cachedEpisodes, episodeError = false)
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) {
+                        if (request == req) _ui.value = _ui.value.copy(episodeError = true)
+                        Timber.w("Episode list failed: %s", e.javaClass.simpleName)
+                    }
+                }
             }
+            PlayKind.FILE -> {
+                val repo = browse ?: return
+                val parentPath = req.ref.trim('/').substringBeforeLast('/', "")
+                val key = req.sourceId to parentPath
+                if (episodeKey == key && cachedEpisodes.any { it.ref == req.ref }) {
+                    _ui.value = _ui.value.copy(episodes = cachedEpisodes)
+                    return
+                }
+                episodeJob?.cancel()
+                episodeJob = viewModelScope.launch {
+                    try {
+                        val files = repo.list(req.sourceId, parentPath)
+                        ensureActive()
+                        if (request != req) return@launch
+                        val videoFiles = files.filter { it.isVideo }
+                        cachedEpisodes = videoFiles.map { file ->
+                            Episode(name = file.name, ref = file.path)
+                        }
+                        episodeKey = key
+                        _ui.value = _ui.value.copy(episodes = cachedEpisodes, episodeError = false)
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) {
+                        if (request == req) _ui.value = _ui.value.copy(episodeError = true)
+                        Timber.w("File episode list failed: %s", e.javaClass.simpleName)
+                    }
+                }
+            }
+            else -> return
         }
     }
 

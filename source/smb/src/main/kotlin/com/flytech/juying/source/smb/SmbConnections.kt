@@ -24,8 +24,10 @@ class SmbConnections internal constructor(createClient: () -> SMBClient) {
     @Inject constructor() : this({
         SMBClient(SmbConfig.builder()
             .withSocketFactory(ProxySocketFactory(CONNECT_TIMEOUT_MS))
-            .withTimeout(10, TimeUnit.SECONDS)
-            .withSoTimeout(20, TimeUnit.SECONDS)
+            .withTimeout(15, TimeUnit.SECONDS)
+            .withSoTimeout(25, TimeUnit.SECONDS)
+            .withBufferSize(1024 * 1024)
+            .withReadBufferSize(512 * 1024)
             .build())
     })
 

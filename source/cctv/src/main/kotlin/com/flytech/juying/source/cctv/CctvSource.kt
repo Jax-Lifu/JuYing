@@ -144,7 +144,8 @@ class CctvSource @Inject constructor(
                         val ref = CctvEpisodeRef(episode.guid, episode.pageUrl, episode.title, playback)
                         Episode(episode.title, CctvJson.format.encodeToString(ref),
                             if (playback == CctvPlayback.NATIVE_HD) listOf(CctvJson.format.encodeToString(
-                                ref.copy(playback = CctvPlayback.OFFICIAL))) else emptyList())
+                                ref.copy(playback = CctvPlayback.OFFICIAL))) else emptyList(),
+                            cover = episode.cover)
                     })
             })
     }

@@ -1,12 +1,82 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="4dp"
-    android:minHeight="76dp" android:padding="12dp" android:gravity="center_vertical"
-    android:background="@drawable/bg_item_focusable" android:focusable="true" android:clickable="true"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    android:minHeight="76dp"
+    android:background="@drawable/bg_item_focusable"
+    android:foreground="@drawable/bg_poster_focus_border"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:clickable="true"
     android:descendantFocusability="blocksDescendants">
-    <ImageView android:id="@+id/icon" android:layout_width="32dp" android:layout_height="32dp" android:layout_marginEnd="16dp" android:importantForAccessibility="no"/>
-    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-        <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="@dimen/jy_text_body" android:textColor="?attr/jy_on_surface" android:maxLines="2" android:ellipsize="end"/>
-        <TextView android:id="@+id/subtitle" style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:layout_marginTop="4dp"/>
-        <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:max="1000" android:layout_marginTop="8dp"/>
+
+    <LinearLayout
+        android:id="@+id/contentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="76dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <!-- 左侧 16:9 缩略图 / 图标容器，避免整行全幅背景拉伸造成的视觉杂乱与重复 -->
+        <FrameLayout
+            android:id="@+id/thumbContainer"
+            android:layout_width="112dp"
+            android:layout_height="63dp"
+            android:layout_marginEnd="12dp"
+            android:clipToOutline="true"
+            android:background="@drawable/bg_poster_glass_scrim">
+
+            <ImageView
+                android:id="@+id/cover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/textGroup"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/jy_text_body"
+                android:textColor="?attr/jy_on_surface"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                style="@style/JyBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="3dp" />
+
+            <ProgressBar
+                android:id="@+id/progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:max="1000"
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

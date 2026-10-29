@@ -6,6 +6,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.flytech.juying.core.data.LiveRepository
 import com.flytech.juying.core.data.SourceBrowseMemory
 import com.flytech.juying.core.data.SourceRepository
@@ -13,6 +14,8 @@ import com.flytech.juying.core.model.Channel
 import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
 import com.flytech.juying.core.model.SourceCapability
+import com.flytech.juying.core.ui.FocusTarget
+import com.flytech.juying.core.ui.findFirstFocusable
 import com.flytech.juying.core.ui.Navigator
 import com.flytech.juying.core.ui.ViewBindingFragment
 import com.flytech.juying.core.ui.loadImage
@@ -30,7 +33,7 @@ import com.flytech.juying.core.designsystem.R as D
 
 /** 直播页面 Fragment，支持三端形态分流与遥控器换台。 */
 @AndroidEntryPoint
-class LiveFragment : ViewBindingFragment<FragmentLiveBinding>(FragmentLiveBinding::inflate) {
+class LiveFragment : ViewBindingFragment<FragmentLiveBinding>(FragmentLiveBinding::inflate), FocusTarget {
     private val vm: LiveViewModel by viewModels()
     @Inject lateinit var navigator: Navigator
     @Inject lateinit var sources: SourceRepository
@@ -46,6 +49,27 @@ class LiveFragment : ViewBindingFragment<FragmentLiveBinding>(FragmentLiveBindin
         vm.uiState.value.sourceId?.let { memory.put(it, "group", index.toString()) }
     }
     private val channelAdapter = ChannelAdapter(::preview, ::play)
+
+    override fun requestPrimaryFocus(): Boolean {
+        if (!isAdded || view == null) return false
+        val candidate = binding.channels.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.groups.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.play.takeIf { it.isVisible }
+        if (candidate != null) {
+            if (candidate is RecyclerView) {
+                val first = candidate.findViewHolderForAdapterPosition(0)?.itemView ?: candidate.getChildAt(0)
+                if (first != null && first.requestFocus()) return true
+                candidate.scrollToPosition(0)
+                candidate.post {
+                    candidate.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        ?: candidate.getChildAt(0)?.requestFocus()
+                }
+                return true
+            }
+            if (candidate.requestFocus()) return true
+        }
+        return binding.root.findFirstFocusable()?.requestFocus() == true
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         binding.groups.apply { adapter = groupAdapter; itemAnimator = null }
@@ -109,6 +133,9 @@ class LiveFragment : ViewBindingFragment<FragmentLiveBinding>(FragmentLiveBindin
                 restoredList = listKey
                 val saved = s.sourceId?.let { memory.get(it, "live-scroll.${s.selectedGroup}").toIntOrNull() } ?: 0
                 (channelList.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(saved.coerceIn(channels.indices), 0)
+            }
+            if (isResumed && !binding.root.hasFocus()) {
+                requestPrimaryFocus()
             }
         }
         if (channels.none { it.id == preview?.id } || previewSource != s.sourceId) {

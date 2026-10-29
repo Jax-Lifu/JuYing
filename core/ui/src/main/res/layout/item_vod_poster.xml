@@ -1,14 +1,58 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:layout_margin="@dimen/jy_content_gap" android:padding="@dimen/jy_content_gap"
-    android:orientation="vertical" android:background="@drawable/bg_media_card"
-    android:focusable="true" android:clickable="true" android:descendantFocusability="blocksDescendants">
-    <ImageView android:id="@+id/cover" android:layout_width="match_parent"
-        android:layout_height="@dimen/jy_poster_height" android:scaleType="centerCrop"
-        android:importantForAccessibility="no" android:background="@drawable/bg_media_artwork" android:clipToOutline="true" />
-    <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/jy_content_gap" android:textColor="?attr/jy_on_surface"
-        android:textSize="@dimen/jy_text_body" android:minLines="2" android:maxLines="2" android:ellipsize="end" />
-    <TextView android:id="@+id/caption" style="@style/JyBody" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" />
-</LinearLayout>
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="@dimen/jy_content_gap"
+    android:background="@drawable/bg_media_artwork"
+    android:foreground="@drawable/bg_poster_focus_border"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:clickable="true"
+    android:descendantFocusability="blocksDescendants">
+
+    <ImageView
+        android:id="@+id/cover"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/jy_poster_height"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_poster_glass_scrim"
+        android:orientation="vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="22dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/jy_text_body"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:shadowColor="#B0000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="3" />
+
+        <TextView
+            android:id="@+id/caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="#CCE2E8F0"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:shadowColor="#90000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="2" />
+    </LinearLayout>
+</FrameLayout>

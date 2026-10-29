@@ -96,4 +96,7 @@ internal fun SMBApiException.asBrowseException(): Exception = when (status) {
 abstract class SmbModule {
     @Binds @IntoSet
     abstract fun source(impl: SmbSource): SourceProvider
+
+    @Binds @IntoSet
+    abstract fun thumbnailFetcher(impl: SmbThumbnailFetcher.Factory): coil.fetch.Fetcher.Factory<android.net.Uri>
 }

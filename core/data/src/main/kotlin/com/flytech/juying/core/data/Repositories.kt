@@ -65,6 +65,8 @@ interface VodRepository {
     suspend fun search(sourceId: String, keyword: String, page: Int): List<VodItem>
     /** 并发跨所有启用且支持 `SEARCH` 能力的数据源检索，单个源超时或报错不影响其余源结果。 */
     suspend fun searchAll(keyword: String, page: Int = 1): List<VodItem>
+    /** 获取搜索联想词与拼音简拼候选词（如 "wwd" -> ["汪汪队立大功"]）。 */
+    suspend fun suggestions(query: String): List<String> = emptyList()
     /** 同一仓库的可搜索子站也逐个返回；失败和超时保持可见，不伪装成零结果。 */
     fun searchUpdates(keyword: String, page: Int = 1): Flow<SearchUpdate>
     suspend fun resolve(sourceId: String, episodeRef: String): PlayItem

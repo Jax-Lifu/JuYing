@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -18,28 +19,50 @@ import kotlinx.coroutines.launch
 
 /** 搜索页面 UI 状态实体。 */
 data class SearchUiState(
-    val keyword: String = "", val posters: List<VodPoster> = emptyList(),
-    val targets: Map<SearchTarget, SearchOutcome?> = emptyMap(), val page: Int = 0,
-    val loading: Boolean = false, val failed: Boolean = false, val hasMore: Boolean = false,
+    val keyword: String = "",
+    val suggestions: List<String> = emptyList(),
+    val posters: List<VodPoster> = emptyList(),
+    val targets: Map<SearchTarget, SearchOutcome?> = emptyMap(),
+    val page: Int = 0,
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+    val hasMore: Boolean = false,
 )
 
 @HiltViewModel
 /**
  * 全源聚合搜索页面 ViewModel。
  *
- * **What**: 处理用户搜索词输入、触发跨源增量搜索请求、维护各站点完成状态并在用户发起新查询时中断旧任务。
+ * **What**: 处理用户搜索词输入、拼音首字母实时联想推荐、触发跨源增量搜索请求、维护各站点完成状态并在用户发起新查询时中断旧任务。
  */
 class SearchViewModel @Inject constructor(private val vod: VodRepository) : ViewModel() {
     private val state = MutableStateFlow(SearchUiState())
     val ui = state.asStateFlow()
     private var request: Job? = null
+    private var suggestJob: Job? = null
     private var lastRequestPage = 1
+
+    fun queryChanged(text: String) {
+        val q = text.trim()
+        suggestJob?.cancel()
+        if (q.length >= 2) {
+            suggestJob = viewModelScope.launch {
+                delay(200) // 防抖
+                val list = runCatching { vod.suggestions(q) }.getOrDefault(emptyList())
+                state.update { it.copy(suggestions = list) }
+            }
+        } else {
+            state.update { it.copy(suggestions = emptyList()) }
+        }
+    }
 
     fun search(keyword: String) {
         request?.cancel()
-        state.value = SearchUiState(keyword = keyword.trim())
+        suggestJob?.cancel()
+        state.value = SearchUiState(keyword = keyword.trim(), suggestions = emptyList())
         if (state.value.keyword.isNotEmpty()) loadPage(1)
     }
+
     fun more() { if (!state.value.loading && state.value.hasMore) loadPage(state.value.page + 1) }
     fun retry() { if (!state.value.loading && state.value.keyword.isNotEmpty()) loadPage(lastRequestPage) }
 
@@ -47,7 +70,7 @@ class SearchViewModel @Inject constructor(private val vod: VodRepository) : View
         request?.cancel()
         lastRequestPage = page
         val before = state.value
-        state.update { it.copy(loading = true, failed = false, targets = emptyMap()) }
+        state.update { it.copy(loading = true, failed = false, targets = emptyMap(), suggestions = emptyList()) }
         request = viewModelScope.launch {
             try {
                 vod.searchUpdates(before.keyword, page).collect { update ->

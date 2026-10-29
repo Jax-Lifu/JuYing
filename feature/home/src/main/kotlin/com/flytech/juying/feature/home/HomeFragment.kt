@@ -6,6 +6,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.flytech.juying.core.data.HistoryRepository
 import com.flytech.juying.core.data.LiveRepository
 import com.flytech.juying.core.data.SourceBrowseMemory
@@ -15,6 +16,8 @@ import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
 import com.flytech.juying.core.model.SourceCapability
 import com.flytech.juying.core.model.SourceType
+import com.flytech.juying.core.ui.FocusTarget
+import com.flytech.juying.core.ui.findFirstFocusable
 import com.flytech.juying.core.ui.MediaRow
 import com.flytech.juying.core.ui.MediaRowAdapter
 import com.flytech.juying.core.ui.CoverCard
@@ -34,7 +37,7 @@ import com.flytech.juying.core.designsystem.R as D
 
 /** 应用主页 Fragment，呈现点播精选推荐与最近观看续播卡。 */
 @AndroidEntryPoint
-class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBinding::inflate) {
+class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBinding::inflate), FocusTarget {
     private val vm: HomeViewModel by viewModels()
     @Inject lateinit var history: HistoryRepository
     @Inject lateinit var live: LiveRepository
@@ -42,6 +45,31 @@ class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBindin
     @Inject lateinit var memory: SourceBrowseMemory
     @Inject lateinit var navigator: Navigator
     private var recent = emptyList<HistoryEntry>()
+
+    override fun requestPrimaryFocus(): Boolean {
+        if (!isAdded || view == null) return false
+        val candidate = binding.recommendations.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.recent.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.sources.takeIf { it.isVisible && (it.adapter?.itemCount ?: 0) > 0 }
+            ?: binding.explore.takeIf { it.isVisible }
+            ?: binding.allHistory.takeIf { it.isVisible }
+            ?: binding.addSource.takeIf { it.isVisible }
+        if (candidate != null) {
+            if (candidate is RecyclerView) {
+                val firstChild = candidate.findViewHolderForAdapterPosition(0)?.itemView ?: candidate.getChildAt(0)
+                if (firstChild != null && firstChild.requestFocus()) return true
+                candidate.scrollToPosition(0)
+                candidate.post {
+                    candidate.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        ?: candidate.getChildAt(0)?.requestFocus()
+                }
+                return true
+            }
+            if (candidate.requestFocus()) return true
+        }
+        return binding.root.findFirstFocusable()?.requestFocus() == true
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val recommendationAdapter = VodPosterAdapter(carousel = true) { navigator.openVodDetail(this, it.sourceId, it.id) }
         val historyAdapter = CoverCardAdapter(carousel = true, onClick = { row -> recent.firstOrNull { it.id == row.id }?.let(::play) })
@@ -70,7 +98,11 @@ class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBindin
             recommendations.firstOrNull()?.let {
                 binding.recommendationHeading.text = getString(R.string.home_recommendation, names[it.sourceId].orEmpty())
             }
-            recommendationAdapter.submitList(recommendations.map { VodPoster(it) })
+            recommendationAdapter.submitList(recommendations.map { VodPoster(it) }) {
+                if (isResumed && !binding.root.hasFocus()) {
+                    requestPrimaryFocus()
+                }
+            }
             val cards = entries.map { CoverCard(it.id, it.title, (names[it.sourceId] ?: getString(D.string.ui_source_missing)) +
                 if (it.kind == PlayKind.LIVE) " · " + getString(D.string.ui_live_return) else "", cover = it.cover,
                 progress = if (it.kind != PlayKind.LIVE && it.durationMs > 0) (it.positionMs * 1000 / it.durationMs).toInt().coerceIn(0, 1000) else null,

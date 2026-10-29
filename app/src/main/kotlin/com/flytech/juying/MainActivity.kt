@@ -9,6 +9,7 @@ import android.widget.Button
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -20,10 +21,12 @@ import com.flytech.juying.core.data.SourceBrowseMemory
 import com.flytech.juying.core.data.SourceRepository
 import com.flytech.juying.core.model.PlayRequest
 import com.flytech.juying.core.model.SourceCapability
+import com.flytech.juying.core.ui.FocusTarget
 import com.flytech.juying.core.ui.JuyingActivity
 import com.flytech.juying.core.ui.NavigationGuard
 import com.flytech.juying.core.ui.Navigator
 import com.flytech.juying.core.ui.SourcePickerHost
+import com.flytech.juying.core.ui.findFirstFocusable
 import com.google.android.material.navigation.NavigationBarView
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -65,20 +68,58 @@ class MainActivity : JuyingActivity(), SourcePickerHost {
                     restoreState = false
                     popUpTo(host.navController.graph.findStartDestination().id) { saveState = false }
                 })
+                focusCurrentContent()
                 return true
             }
             if (page is NavigationGuard) { page.confirmLeave { navigate() }; false } else navigate()
         }
+        nav.setOnItemReselectedListener {
+            focusCurrentContent()
+        }
         findViewById<View>(R.id.source_switch).setOnClickListener { guarded { navigator.showSourcePicker(this, currentSource) } }
         findViewById<View>(R.id.global_search).setOnClickListener { guarded { host.navController.navigate(R.id.search) } }
         findViewById<View>(R.id.global_history).setOnClickListener { guarded { host.navController.navigate(R.id.history) } }
-        host.navController.addOnDestinationChangedListener { _, _, _ -> updateHeader() }
+        val rootTabs = setOf(
+            R.id.nav_home, R.id.nav_live, R.id.nav_vod, R.id.nav_browse, R.id.nav_settings
+        )
+        host.navController.addOnDestinationChangedListener { _, destination, _ ->
+            val isRoot = destination.id in rootTabs
+            findViewById<View>(R.id.nav_bar)?.isVisible = isRoot
+            updateHeader()
+        }
+        host.childFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentResumed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+                val nav = findViewById<NavigationBarView?>(R.id.nav_bar)
+                val focused = currentFocus
+                if (focused == null || (nav != null && isChildOf(focused, nav))) {
+                    focusCurrentContent()
+                }
+            }
+        }, true)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(sources.observeSources(), memory.updates) { configs, _ -> configs }.collect { updateHeader() }
             }
         }
-        if (savedInstanceState == null) handleIntent(intent)
+        if (savedInstanceState == null) {
+            handleIntent(intent)
+            findViewById<View>(R.id.nav_host)?.postDelayed({ focusCurrentContent() }, 300)
+        }
+    }
+
+    fun focusCurrentContent() {
+        val navHostView = findViewById<View>(R.id.nav_host) ?: return
+        fun doFocus() {
+            if (navHostView.hasFocus()) return
+            val currentFragment = host.childFragmentManager.primaryNavigationFragment
+                ?: host.childFragmentManager.fragments.firstOrNull { it.isVisible }
+            if (currentFragment is FocusTarget && currentFragment.requestPrimaryFocus()) return
+            val target = navHostView.findFirstFocusable()
+            target?.requestFocus()
+        }
+        navHostView.post { doFocus() }
+        navHostView.postDelayed({ doFocus() }, 100)
+        navHostView.postDelayed({ doFocus() }, 300)
     }
 
     private fun guarded(proceed: () -> Unit) {
@@ -108,7 +149,6 @@ class MainActivity : JuyingActivity(), SourcePickerHost {
             storagePermission.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
             return
         }
-        if (android.os.Environment.isExternalStorageManager()) return
         val settings = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
             android.net.Uri.parse("package:$packageName"))
         try { startActivity(settings) }
@@ -145,8 +185,48 @@ class MainActivity : JuyingActivity(), SourcePickerHost {
     override fun playFromPicker(request: PlayRequest) = navigator.openPlayer(this, request)
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_MENU) { guarded { navigator.showSourcePicker(this, currentSource) }; return true }
+        val nav = findViewById<NavigationBarView?>(R.id.nav_bar)
+        if (nav != null && nav.isVisible) {
+            val focused = currentFocus
+            // 遥控器在左侧导航栏按“向右”键时，直接聚焦到当前主内容区
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && focused != null && isChildOf(focused, nav)) {
+                focusCurrentContent()
+                return true
+            }
+            // 遥控器在主内容区按“向左”键回退到导航栏时，精准对齐到当前选中的栏目，避免因纵向坐标跳跃到其他栏目
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && focused != null && !isChildOf(focused, nav)) {
+                val next = focused.focusSearch(View.FOCUS_LEFT)
+                if (next == null || isChildOf(next, nav)) {
+                    val activeItem = nav.findViewById<View>(nav.selectedItemId)
+                    if (activeItem != null && activeItem.requestFocus()) return true
+                }
+            }
+        }
         return super.onKeyDown(keyCode, event)
     }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        val nav = findViewById<NavigationBarView?>(R.id.nav_bar)
+        if (nav != null && nav.isVisible) {
+            val focused = currentFocus
+            if (focused != null && isChildOf(focused, nav)) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    focusCurrentContent()
+                }
+            }
+        }
+        return super.onKeyUp(keyCode, event)
+    }
+
+    private fun isChildOf(view: View, parent: View): Boolean {
+        var current: Any? = view
+        while (current != null) {
+            if (current === parent) return true
+            current = (current as? View)?.parent
+        }
+        return false
+    }
+
     companion object {
         fun sourceIntent(context: Context, capability: SourceCapability) = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("source_capability", capability.name)
