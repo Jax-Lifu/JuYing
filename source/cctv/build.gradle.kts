@@ -5,6 +5,9 @@ plugins {
 android {
     namespace = "com.flytech.juying.source.cctv"
     ndkVersion = "28.2.13676358"
+    defaultConfig {
+        providers.gradleProperty("targetAbi").orNull?.let { ndk.abiFilters += it }
+    }
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")

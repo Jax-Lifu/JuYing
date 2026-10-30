@@ -41,7 +41,7 @@ class BrowseViewModelTest {
             }
             override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem = error("unused")
         }
-        val vm = BrowseViewModel(FakeSourceRepository(listOf(source)), repo, memory)
+        val vm = BrowseViewModel(FakeSourceRepository(listOf(source)), repo, memory, main.testDispatcher)
         val store = ViewModelStore(); store.put("browse", vm)
         try {
             assertEquals(listOf("gone-child", "gone-parent", ""), calls)
@@ -68,7 +68,7 @@ class BrowseViewModelTest {
             override suspend fun list(sourceId: String, path: String): List<FileEntry> { calls += sourceId to path; return emptyList() }
             override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem = error("unused")
         }
-        val vm = BrowseViewModel(sources, repo, memory)
+        val vm = BrowseViewModel(sources, repo, memory, main.testDispatcher)
         val store = ViewModelStore(); store.put("browse", vm)
         try {
             memory.select("two", SourceCapability.BROWSE)
@@ -90,7 +90,7 @@ class BrowseViewModelTest {
                 if (path == "opaque-slow") suspendCoroutine { slow = it } else listOf(FileEntry(path, path, false))
             override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem = error("unused")
         }
-        val vm = BrowseViewModel(FakeSourceRepository(listOf(source)), repo, memory)
+        val vm = BrowseViewModel(FakeSourceRepository(listOf(source)), repo, memory, main.testDispatcher)
         val store = ViewModelStore(); store.put("browse", vm)
         try {
             vm.enter(FileEntry("Slow", "opaque-slow", true))
@@ -115,7 +115,7 @@ class BrowseViewModelTest {
             }
             override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem = error("unused")
         }
-        val vm = BrowseViewModel(sources, repo, memory)
+        val vm = BrowseViewModel(sources, repo, memory, main.testDispatcher)
         val store = ViewModelStore(); store.put("browse", vm)
         try {
             assertTrue(vm.ui.value.showRoots)
@@ -149,7 +149,7 @@ class BrowseViewModelTest {
             override suspend fun list(sourceId: String, path: String): List<FileEntry> = emptyList()
             override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem = error("unused")
         }
-        val vm = BrowseViewModel(sources, repo, memory)
+        val vm = BrowseViewModel(sources, repo, memory, main.testDispatcher)
         val store = ViewModelStore(); store.put("browse", vm)
         try {
             assertTrue(vm.ui.value.showRoots)

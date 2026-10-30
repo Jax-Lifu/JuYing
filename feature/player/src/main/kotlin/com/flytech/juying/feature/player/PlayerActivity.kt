@@ -158,7 +158,10 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
             if (bottom - top != oldBottom - oldTop) layoutPlayer()
         }
 
-        parseRequest(intent)?.let(vm::start) ?: run { finish(); return }
+        if (vm.currentRequest == null) {
+            val restored = savedInstanceState?.getBundle(STATE_REQUEST)?.let { parseRequest(Intent().putExtras(it)) }
+            (restored ?: parseRequest(intent))?.let(vm::start) ?: run { finish(); return }
+        }
         binding.root.post { layoutPlayer(); showControls() }
 
         lifecycleScope.launch {
@@ -168,7 +171,13 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         parseRequest(intent)?.let(vm::start)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        vm.currentRequest?.let { outState.putBundle(STATE_REQUEST, intent(this, it).extras) }
+        super.onSaveInstanceState(outState)
     }
 
     override fun onStart() {
@@ -525,6 +534,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
 
     companion object {
         private const val WEB_PAGE_COMPLETE = 100
+        private const val STATE_REQUEST = "player_request"
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_SOURCE = "source"
         private const val EXTRA_REF = "ref"

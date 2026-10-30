@@ -67,6 +67,7 @@ class PlayerViewModelTest {
     private val engine = FakePlayerEngine()
     private val live = ControlledLiveRepository()
     private val vod = ControlledVodRepository()
+    private val browse = RecordingBrowseRepository()
     private val history = RecordingHistoryRepository()
     private val store = ViewModelStore()
     private lateinit var vm: PlayerViewModel
@@ -76,7 +77,7 @@ class PlayerViewModelTest {
         val playback = PlaybackManager({ engine }, SettingsDataSource(RuntimeEnvironment.getApplication()))
         // Resolve the real settings store before testing main-thread request ordering.
         runBlocking { playback.acquire() }
-        vm = PlayerViewModel(GetPlayItemUseCase(live, vod, unusedBrowse, history), ZapChannelUseCase(live), history, playback, vod)
+        vm = PlayerViewModel(GetPlayItemUseCase(live, vod, browse, history), ZapChannelUseCase(live), history, playback, vod, browse)
         store.put("player", vm)
     }
 
@@ -491,6 +492,52 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun `system pause resumes on the first toggle`() = runTest {
+        vm.start(request("live"))
+        engine.state.value = engine.state.value.copy(playWhenReady = false, isPlaying = false)
+
+        vm.togglePlay()
+
+        assertEquals(2, engine.playCount)
+        assertEquals(true, engine.state.value.playWhenReady)
+    }
+
+    @Test
+    fun `system pause survives a line switch and foreground return`() = runTest {
+        live.resolveItem = { item(it.id).copy(backupLines = listOf(PlayLine("https://example.test/backup"))) }
+        vm.start(request("live"))
+        engine.state.value = engine.state.value.copy(playWhenReady = false, isPlaying = false)
+
+        vm.selectLine(1)
+        vm.onBackground()
+        vm.onForeground()
+
+        assertEquals(1, engine.playCount)
+        assertEquals(false, engine.state.value.playWhenReady)
+        vm.onBackground()
+    }
+
+    @Test
+    fun `buffering can be paused and does not clear foreground resume intent`() = runTest {
+        vm.start(request("live"))
+        assertEquals(false, engine.state.value.isPlaying)
+        assertEquals(true, engine.state.value.isBuffering)
+        assertEquals(true, engine.state.value.playWhenReady)
+
+        vm.onBackground()
+        vm.onForeground()
+        assertEquals(2, engine.playCount)
+        assertEquals(true, engine.state.value.playWhenReady)
+
+        vm.togglePlay()
+        assertEquals(false, engine.state.value.playWhenReady)
+        vm.onBackground()
+        vm.onForeground()
+        assertEquals(2, engine.playCount)
+        vm.onBackground()
+    }
+
+    @Test
     fun `exit captures progress and content context before engine release`() = runTest {
         vm.start(request("episode").copy(extra = mapOf("itemId" to "album", "mediaTitle" to "Series", "Cookie" to "secret")))
         engine.position = 42_000
@@ -505,6 +552,52 @@ class PlayerViewModelTest {
         assertEquals("Series", history.entries.last().title)
         assertEquals(mapOf("itemId" to "album", "mediaTitle" to "Series"), history.entries.last().extra)
         assertEquals(1, engine.releaseCount)
+    }
+
+    @Test
+    fun `completed vod restarts from zero on the first play toggle`() = runTest {
+        vm.start(PlayRequest(PlayKind.VOD, "source", "episode", "Episode"))
+        engine.position = 60_000
+        engine.state.value = engine.state.value.copy(ended = true, isPlaying = false, isBuffering = false)
+
+        vm.togglePlay()
+
+        assertEquals(listOf(0L), engine.seeks)
+        assertEquals(2, engine.playCount)
+        assertEquals(true, engine.state.value.playWhenReady)
+        assertEquals(false, engine.state.value.ended)
+    }
+
+    @Test
+    fun `completed last file restarts even after playback intent was paused`() = runTest {
+        browse.files = listOf(FileEntry("last.mp4", "folder/last.mp4", false))
+        vm.start(PlayRequest(PlayKind.FILE, "source", "folder/last.mp4", "last.mp4"))
+        engine.position = 60_000
+        engine.state.value = engine.state.value.copy(ended = true, playWhenReady = false, isPlaying = false, isBuffering = false)
+
+        vm.togglePlay()
+
+        assertEquals(listOf(0L), engine.seeks)
+        assertEquals(2, engine.playCount)
+        assertEquals(true, engine.state.value.playWhenReady)
+        assertEquals("folder/last.mp4", vm.currentRequest?.ref)
+    }
+
+    @Test
+    fun `completed replay requested in background waits for foreground`() = runTest {
+        vm.start(PlayRequest(PlayKind.VOD, "source", "episode", "Episode"))
+        engine.state.value = engine.state.value.copy(ended = true, isPlaying = false, isBuffering = false)
+        vm.onBackground()
+
+        vm.togglePlay()
+
+        assertEquals(listOf(0L), engine.seeks)
+        assertEquals(1, engine.playCount)
+        assertEquals(false, engine.state.value.playWhenReady)
+        vm.onForeground()
+        assertEquals(2, engine.playCount)
+        assertEquals(true, engine.state.value.playWhenReady)
+        vm.onBackground()
     }
 
     @Test
@@ -525,6 +618,27 @@ class PlayerViewModelTest {
         vm.changeEpisode(-1)
         assertEquals("line-b-2", vm.currentRequest!!.ref)
         assertEquals(1, vod.detailCalls)
+    }
+
+    @Test
+    fun `file episode changes discard the previous uri for manual and automatic playback`() = runTest {
+        browse.files = listOf("a.mp4", "b.mp4").map { FileEntry(it, "folder/$it", false) }
+        val firstUri = "smb://nas/share/folder/a.mp4"
+        vm.start(PlayRequest(PlayKind.FILE, "source", "folder/a.mp4", "a.mp4", mapOf("uri" to firstUri, "cover" to "cover.jpg")))
+        assertEquals(firstUri, engine.prepared.single().url)
+
+        vm.changeEpisode(1)
+        assertEquals("folder/b.mp4", browse.resolved.last().path)
+        assertNull(browse.resolved.last().uri)
+        assertEquals("smb://nas/share/folder/b.mp4", engine.prepared.last().url)
+        assertEquals("cover.jpg", vm.currentRequest!!.extra["cover"])
+
+        vm.selectEpisode(0)
+        engine.state.value = PlayerState(ended = true)
+        assertEquals(listOf("folder/a.mp4", "folder/b.mp4", "folder/a.mp4", "folder/b.mp4"), browse.resolved.map { it.path })
+        assertEquals(listOf(null, null, null), browse.resolved.drop(1).map { it.uri })
+        assertEquals("smb://nas/share/folder/b.mp4", engine.prepared.last().url)
+        assertEquals("source:folder/b.mp4", history.entries.last().id)
     }
 
     @Test
@@ -569,6 +683,16 @@ class PlayerViewModelTest {
         override suspend fun resolve(sourceId: String, episodeRef: String) = resolveItem(episodeRef)
     }
 
+    private class RecordingBrowseRepository : BrowseRepository {
+        var files = emptyList<FileEntry>()
+        val resolved = mutableListOf<FileEntry>()
+        override suspend fun list(sourceId: String, path: String) = files
+        override suspend fun playItem(sourceId: String, entry: FileEntry): PlayItem {
+            resolved += entry
+            return PlayItem(entry.path, entry.name, entry.uri ?: "smb://nas/share/${entry.path}")
+        }
+    }
+
     private class ControlledLiveRepository : LiveRepository {
         var groups: Flow<List<ChannelGroup>> = flowOf(emptyList())
         var resolveItem: suspend (Channel) -> PlayItem = { item(it.id) }
@@ -591,18 +715,23 @@ class PlayerViewModelTest {
     private class FakePlayerEngine : PlayerEngine {
         override val state = MutableStateFlow(PlayerState())
         val prepared = mutableListOf<PlayItem>()
+        val seeks = mutableListOf<Long>()
         var releaseCount = 0
         var playCount = 0
         var position = 0L
         override fun setSurfaceView(view: SurfaceView?) = Unit
         override fun prepare(item: PlayItem) {
             // Media3Engine synchronously clears the previous error at prepare entry.
-            state.value = PlayerState(isBuffering = true)
+            state.value = PlayerState(isBuffering = true, playWhenReady = state.value.playWhenReady)
             prepared += item
         }
-        override fun play() { playCount++ }
-        override fun pause() = Unit
-        override fun seekTo(positionMs: Long) = Unit
+        override fun play() { playCount++; state.value = state.value.copy(playWhenReady = true) }
+        override fun pause() { state.value = state.value.copy(playWhenReady = false, isPlaying = false) }
+        override fun seekTo(positionMs: Long) {
+            seeks += positionMs
+            position = positionMs
+            state.value = state.value.copy(ended = false)
+        }
         override fun seekBy(deltaMs: Long) = Unit
         override fun positionMs() = position
         override fun durationMs() = 0L
@@ -622,10 +751,6 @@ class PlayerViewModelTest {
             override suspend fun searchAll(keyword: String, page: Int) = error("not used")
             override fun searchUpdates(keyword: String, page: Int): kotlinx.coroutines.flow.Flow<com.flytech.juying.core.model.SearchUpdate> = error("not used")
             override suspend fun resolve(sourceId: String, episodeRef: String) = error("not used")
-        }
-        val unusedBrowse = object : BrowseRepository {
-            override suspend fun list(sourceId: String, path: String) = error("not used")
-            override suspend fun playItem(sourceId: String, entry: FileEntry) = error("not used")
         }
     }
 }

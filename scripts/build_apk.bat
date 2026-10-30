@@ -8,9 +8,11 @@ setlocal enabledelayedexpansion
 :: 自动将最终编译产物复制到 dist\<版本或日期子目录>\ 下
 ::
 :: 用法:
-::   scripts\build_apk.bat                    默认编译 Debug + Release 并归档至 dist\v{版本}_{日期}\
+::   scripts\build_apk.bat                    默认编译 Debug + Release 的 ARM64、ARMv7、通用包
 ::   scripts\build_apk.bat --debug            仅编译 Debug APK
 ::   scripts\build_apk.bat --release          仅编译 Release APK（含 R8 mapping.txt 归档）
+::   scripts\build_apk.bat --debug --abi arm64-v8a  仅编译 ARM64 包
+::   scripts\build_apk.bat --debug --abi universal  仅编译双架构通用包
 ::   scripts\build_apk.bat --by-version       按版本号分子目录存放: dist\v0.1.0\
 ::   scripts\build_apk.bat --by-date          按日期分子目录存放:   dist\20261024\
 ::   scripts\build_apk.bat --clean            编译前执行 clean
@@ -22,6 +24,7 @@ cd /d "%PROJECT_ROOT%"
 set "BUILD_TARGET=all"
 set "DIST_MODE=version_date"
 set "DO_CLEAN=0"
+set "ABI=all"
 
 :parse_args
 if "%~1"=="" goto :args_done
@@ -40,76 +43,47 @@ if /i "%~1"=="--by-date"         (set "DIST_MODE=date" & shift & goto :parse_arg
 if /i "%~1"=="-d"                (set "DIST_MODE=date" & shift & goto :parse_args)
 if /i "%~1"=="--by-version-date" (set "DIST_MODE=version_date" & shift & goto :parse_args)
 if /i "%~1"=="--clean"           (set "DO_CLEAN=1" & shift & goto :parse_args)
+if /i "%~1"=="--abi"             (set "ABI=%~2" & shift & shift & goto :parse_args)
 shift
 goto :parse_args
 :args_done
 
-set "GRADLE_TASKS="
-if "%DO_CLEAN%"=="1" set "GRADLE_TASKS=clean "
-if "%BUILD_TARGET%"=="debug" (
-    set "GRADLE_TASKS=%GRADLE_TASKS%:app:assembleDebug"
-    set "VARIANTS=debug"
-) else if "%BUILD_TARGET%"=="release" (
-    set "GRADLE_TASKS=%GRADLE_TASKS%:app:assembleRelease"
-    set "VARIANTS=release"
-) else (
-    set "GRADLE_TASKS=%GRADLE_TASKS%:app:assembleDebug :app:assembleRelease"
-    set "VARIANTS=debug release"
-)
-
-echo.
-echo ============================================================================
-echo [1/2] 正在编译 APK ^(目标: %BUILD_TARGET%, 归档模式: %DIST_MODE%^)
-echo       执行任务: %GRADLE_TASKS% -PdistMode=%DIST_MODE%
-echo ============================================================================
-call "%PROJECT_ROOT%gradlew.bat" %GRADLE_TASKS% -PdistMode=%DIST_MODE%
-if errorlevel 1 (
-    echo [错误] Gradle 编译失败！
+if not "%ABI%"=="all" if not "%ABI%"=="universal" if not "%ABI%"=="arm64-v8a" if not "%ABI%"=="armeabi-v7a" (
+    echo Invalid ABI: %ABI%. Use all, universal, arm64-v8a or armeabi-v7a.
     exit /b 1
 )
 
-:: 从已生成的 APK 文件名提取版本号与日期（JuYing_{debug|release}_{version}_{date}.apk）
-set "APP_VER=0.1.0"
-set "BUILD_DATE="
-for %%V in (%VARIANTS%) do (
-    for /f "delims=" %%F in ('dir /b /a-d /o-d "%PROJECT_ROOT%app\build\outputs\apk\%%V\*.apk" 2^>nul') do (
-        for /f "tokens=1,2,3,4 delims=_" %%A in ("%%~nF") do (
-            if not "%%C"=="" set "APP_VER=%%C"
-            if not "%%D"=="" set "BUILD_DATE=%%D"
-        )
-    )
-)
-
-if "%DIST_MODE%"=="version" (
-    set "SUB_DIR=v!APP_VER!"
-) else if "%DIST_MODE%"=="date" (
-    set "SUB_DIR=!BUILD_DATE!"
+set "GRADLE_TASKS="
+if "%BUILD_TARGET%"=="debug" (
+    set "GRADLE_TASKS=:app:assembleDebug"
+) else if "%BUILD_TARGET%"=="release" (
+    set "GRADLE_TASKS=:app:assembleRelease"
 ) else (
-    set "SUB_DIR=v!APP_VER!_!BUILD_DATE!"
+    set "GRADLE_TASKS=:app:assembleDebug :app:assembleRelease"
 )
 
-set "TARGET_DIST=%PROJECT_ROOT%dist\!SUB_DIR!"
-if not exist "!TARGET_DIST!" mkdir "!TARGET_DIST!"
-
-:: 即使 Gradle UP-TO-DATE 也确保产物完整同步到目标 dist 子目录
-for %%V in (%VARIANTS%) do (
-    for /f "delims=" %%F in ('dir /b /a-d /o-d "%PROJECT_ROOT%app\build\outputs\apk\%%V\*.apk" 2^>nul') do (
-        copy /y "%PROJECT_ROOT%app\build\outputs\apk\%%V\%%F" "!TARGET_DIST!\%%F" >nul
-        if /i "%%V"=="release" (
-            if exist "%PROJECT_ROOT%app\build\outputs\mapping\release\mapping.txt" (
-                copy /y "%PROJECT_ROOT%app\build\outputs\mapping\release\mapping.txt" "!TARGET_DIST!\%%~nF_mapping.txt" >nul
-            )
-        )
-    )
+if "%ABI%"=="all" (
+    set "BUILD_ABIS=arm64-v8a armeabi-v7a universal"
+) else (
+    set "BUILD_ABIS=%ABI%"
+)
+for %%A in (%BUILD_ABIS%) do (
+    call :build_abi %%A
+    if errorlevel 1 exit /b 1
 )
 
-echo.
-echo ============================================================================
-echo [2/2] 编译与归档完成！输出目录: !TARGET_DIST!
-echo ============================================================================
-for %%F in ("!TARGET_DIST!\*.*") do (
-    echo   - %%~nxF   ^(%%~zF 字节^)
-)
-echo.
+:: Gradle assemble 为每轮 APK 和对应 mapping 精确归档，避免混入旧架构产物。
+echo [2/2] 编译与归档完成！输出目录: %PROJECT_ROOT%dist\
 endlocal
+exit /b 0
+
+:build_abi
+set "CLEAN_TASK="
+if "%DO_CLEAN%"=="1" set "CLEAN_TASK=clean"
+set "ABI_PROPERTY="
+if not "%~1"=="universal" set "ABI_PROPERTY=-PtargetAbi=%~1"
+echo [1/2] 正在编译 APK ^(目标: %BUILD_TARGET%, ABI: %~1, 归档模式: %DIST_MODE%^)
+call "%PROJECT_ROOT%gradlew.bat" %CLEAN_TASK% %GRADLE_TASKS% -PdistMode=%DIST_MODE% %ABI_PROPERTY%
+if errorlevel 1 exit /b 1
+set "DO_CLEAN=0"
 exit /b 0

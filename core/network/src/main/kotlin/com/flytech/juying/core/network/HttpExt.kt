@@ -17,19 +17,27 @@ import kotlin.coroutines.resumeWithException
 private const val DEFAULT_MAX_TEXT_BYTES = 15L * 1024 * 1024 // 15MB 上限，防止误拉取视频流撑爆低配机内存
 
 /**
- * 将 OkHttp 的异步 [Call] 转换为支持协程取消的挂起扩展。
+ * 在 OkHttp 回调中读取并关闭响应，正文读取期间仍响应协程取消。
  *
  * **Why**: 协程作用域取消或超时（如超时取消网络嗅探）时，自动触发 [Call.cancel]，
  * 立即关闭底层 TCP 连接并释放缓冲区，避免后台任务继续空转。
  */
-suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
+suspend fun <T> Call.await(read: (Response) -> T): T = suspendCancellableCoroutine { cont ->
     enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
             if (!cont.isCancelled) cont.resumeWithException(e)
         }
 
         override fun onResponse(call: Call, response: Response) {
-            cont.resume(response)
+            try {
+                val value = response.use {
+                    if (!cont.isActive) return
+                    read(it)
+                }
+                cont.resume(value)
+            } catch (error: Throwable) {
+                if (cont.isActive) cont.resumeWithException(error)
+            }
         }
     })
     cont.invokeOnCancellation { runCatching { cancel() } }
@@ -48,12 +56,12 @@ suspend fun OkHttpClient.fetchText(
 ): String = withContext(Dispatchers.IO) {
     // OkHttp 回调只保证响应头异步到达，正文读取仍需避开主线程。
     val request = Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.build()
-    newCall(request).await().use { resp ->
+    newCall(request).await { resp ->
         if (!resp.isSuccessful) {
             Timber.w("fetchText HTTP %d", resp.code)
             throw IOException("HTTP ${resp.code}")
         }
-        val body = resp.body ?: return@withContext ""
+        val body = resp.body ?: return@await ""
         val contentLength = body.contentLength()
         if (contentLength > maxBytes) {
             throw IOException("Response too large ($contentLength bytes > $maxBytes limit)")

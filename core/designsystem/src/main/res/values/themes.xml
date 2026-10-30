@@ -1,60 +1,60 @@
 <resources>
   <style name="Theme.Juying" parent="Theme.Material3.Dark.NoActionBar">
-    <item name="jy_background">#101115</item>
-    <item name="jy_surface">#191B20</item>
-    <item name="jy_surface_variant">#303238</item>
-    <item name="jy_accent">#F5F4F1</item>
-    <item name="jy_on_surface">#F5F4F1</item>
-    <item name="jy_on_surface_secondary">#ADB3BF</item>
+    <item name="jy_background">#171411</item>
+    <item name="jy_surface">#24201B</item>
+    <item name="jy_surface_variant">#3C3126</item>
+    <item name="jy_accent">#F4BB68</item>
+    <item name="jy_on_surface">#FFF4E5</item>
+    <item name="jy_on_surface_secondary">#C7B8A5</item>
     <item name="jy_error">#FF8178</item>
-    <item name="colorPrimary">#F5F4F1</item>
-    <item name="colorOnPrimary">#101115</item>
-    <item name="colorSurface">#191B20</item>
-    <item name="colorOnSurface">#F5F4F1</item>
+    <item name="colorPrimary">#F4BB68</item>
+    <item name="colorOnPrimary">#171411</item>
+    <item name="colorSurface">#24201B</item>
+    <item name="colorOnSurface">#FFF4E5</item>
     <item name="colorSecondaryContainer">?attr/jy_surface_variant</item><item name="colorOnSecondaryContainer">?attr/jy_on_surface</item>
-    <item name="colorOutline">#ADB3BF</item>
-    <item name="android:windowBackground">#101115</item>
-    <item name="android:statusBarColor">#101115</item>
-    <item name="android:navigationBarColor">#101115</item>
+    <item name="colorOutline">#C7B8A5</item>
+    <item name="android:windowBackground">#171411</item>
+    <item name="android:statusBarColor">#171411</item>
+    <item name="android:navigationBarColor">#171411</item>
     <item name="android:textColorPrimary">@color/theme_juying_primary</item>
     <item name="android:textColorSecondary">@color/theme_juying_secondary</item>
     <item name="android:windowLightStatusBar">false</item>
   </style>
   <style name="Theme.Juying.Light" parent="Theme.Material3.Light.NoActionBar">
-    <item name="jy_background">#F5F6F6</item>
+    <item name="jy_background">#FAF6EF</item>
     <item name="jy_surface">#FFFFFF</item>
-    <item name="jy_surface_variant">#DDE5E4</item>
-    <item name="jy_accent">#244F48</item>
-    <item name="jy_on_surface">#171C1E</item>
-    <item name="jy_on_surface_secondary">#526168</item>
+    <item name="jy_surface_variant">#EDE1CF</item>
+    <item name="jy_accent">#815014</item>
+    <item name="jy_on_surface">#261D14</item>
+    <item name="jy_on_surface_secondary">#6D5E4C</item>
     <item name="jy_error">#BA1A1A</item>
-    <item name="colorPrimary">#244F48</item>
-    <item name="colorOnPrimary">#F5F6F6</item>
+    <item name="colorPrimary">#815014</item>
+    <item name="colorOnPrimary">#FAF6EF</item>
     <item name="colorSurface">#FFFFFF</item>
-    <item name="colorOnSurface">#171C1E</item>
+    <item name="colorOnSurface">#261D14</item>
     <item name="colorSecondaryContainer">?attr/jy_surface_variant</item><item name="colorOnSecondaryContainer">?attr/jy_on_surface</item>
-    <item name="colorOutline">#526168</item>
-    <item name="android:windowBackground">#F5F6F6</item>
-    <item name="android:statusBarColor">#F5F6F6</item>
-    <item name="android:navigationBarColor">#F5F6F6</item>
+    <item name="colorOutline">#6D5E4C</item>
+    <item name="android:windowBackground">#FAF6EF</item>
+    <item name="android:statusBarColor">#FAF6EF</item>
+    <item name="android:navigationBarColor">#FAF6EF</item>
     <item name="android:textColorPrimary">@color/theme_juying_light_primary</item>
     <item name="android:textColorSecondary">@color/theme_juying_light_secondary</item>
     <item name="android:windowLightStatusBar">true</item>
   </style>
   <style name="Theme.Juying.Black" parent="Theme.Juying">
     <item name="jy_background">#000000</item>
-    <item name="jy_surface">#101214</item>
-    <item name="jy_surface_variant">#24282B</item>
-    <item name="jy_accent">#D9EFEB</item>
+    <item name="jy_surface">#191511</item>
+    <item name="jy_surface_variant">#342B20</item>
+    <item name="jy_accent">#F4BB68</item>
     <item name="jy_on_surface">#FFFFFF</item>
-    <item name="jy_on_surface_secondary">#B3BDC4</item>
+    <item name="jy_on_surface_secondary">#C9BAA8</item>
     <item name="jy_error">#FF8178</item>
-    <item name="colorPrimary">#D9EFEB</item>
+    <item name="colorPrimary">#F4BB68</item>
     <item name="colorOnPrimary">#000000</item>
-    <item name="colorSurface">#101214</item>
+    <item name="colorSurface">#191511</item>
     <item name="colorOnSurface">#FFFFFF</item>
     <item name="colorSecondaryContainer">?attr/jy_surface_variant</item><item name="colorOnSecondaryContainer">?attr/jy_on_surface</item>
-    <item name="colorOutline">#B3BDC4</item>
+    <item name="colorOutline">#C9BAA8</item>
     <item name="android:windowBackground">#000000</item>
     <item name="android:statusBarColor">#000000</item>
     <item name="android:navigationBarColor">#000000</item>

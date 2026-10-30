@@ -66,6 +66,8 @@ data class TvboxRepoEntry(val url: String = "", val name: String = "")
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 object TvboxConfigParser {
 
+    internal const val MAX_NESTING_DEPTH = 64
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -81,7 +83,36 @@ object TvboxConfigParser {
             .filterNot { it.trimStart().startsWith("//") }
             .joinToString("\n")
 
-    fun parse(text: String): TvboxConfig = json.decodeFromString(clean(TvboxConfigDecoder.decode(text)))
+    private fun decoded(text: String): String = clean(TvboxConfigDecoder.decode(text)).also(::checkNesting)
+
+    // 在 JSON 解码与相对地址递归前拒绝深层输入，字符串和注释不参与结构计数。
+    private fun checkNesting(value: String) {
+        var depth = 0
+        var quoted = false
+        var index = 0
+        while (index < value.length) {
+            val char = value[index]
+            when {
+                quoted && char == '\\' -> index++
+                char == '"' -> quoted = !quoted
+                quoted -> Unit
+                char == '/' && value.getOrNull(index + 1) == '/' -> {
+                    index = value.indexOf('\n', index + 2).takeIf { it >= 0 } ?: value.length
+                }
+                char == '/' && value.getOrNull(index + 1) == '*' -> {
+                    index = value.indexOf("*/", index + 2).takeIf { it >= 0 }?.plus(1) ?: value.length
+                }
+                char == '{' || char == '[' -> {
+                    depth++
+                    require(depth <= MAX_NESTING_DEPTH) { "TVBox 配置嵌套超过 $MAX_NESTING_DEPTH 层" }
+                }
+                char == '}' || char == ']' -> depth--
+            }
+            index++
+        }
+    }
+
+    fun parse(text: String): TvboxConfig = json.decodeFromString(decoded(text))
 
     /** 仅修复 JSON 字符串中的相对地址，保留脚本文本和查询参数内部的 ./ 原义。 */
     internal fun document(text: String, baseUrl: String): JsonObject {
@@ -91,13 +122,16 @@ object TvboxConfigParser {
             is JsonPrimitive -> if (element.isString && (element.content.startsWith("./") || element.content.startsWith("../")))
                 JsonPrimitive(baseUrl.toHttpUrl().resolve(element.content)?.toString() ?: element.content) else element
         }
-        return resolve(json.parseToJsonElement(clean(TvboxConfigDecoder.decode(text)))) as? JsonObject
+        return resolve(json.parseToJsonElement(decoded(text))) as? JsonObject
             ?: error("订阅不是 JSON 对象")
     }
 
     /** 若是多仓配置返回仓库列表，否则返回 null。 */
-    fun parseRepoList(text: String): List<TvboxRepoEntry>? =
-        runCatching { json.decodeFromString<TvboxRepoList>(clean(TvboxConfigDecoder.decode(text))).urls }
+    fun parseRepoList(text: String): List<TvboxRepoEntry>? {
+        val value = runCatching { clean(TvboxConfigDecoder.decode(text)) }.getOrNull() ?: return null
+        checkNesting(value)
+        return runCatching { json.decodeFromString<TvboxRepoList>(value).urls }
             .getOrNull()
             ?.takeIf { it.isNotEmpty() }
+    }
 }

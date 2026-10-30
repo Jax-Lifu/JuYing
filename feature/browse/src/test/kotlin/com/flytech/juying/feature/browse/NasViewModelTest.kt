@@ -116,6 +116,66 @@ class NasViewModelTest {
         } finally { store.clear() }
     }
 
+    @Test fun returningFromManualKeepsSavedDevicesWithoutSourceChanges() = runTest {
+        val saved = SourceConfig("saved", "Movies · ${device.name}", SourceType.SMB, "smb://${device.host}/Movies")
+        for (discovered in listOf(emptyList(), listOf(device))) {
+            val repository = object : SourceRepository by FakeSourceRepository(listOf(saved)) {
+                override fun discoverNetworkStorage() = flow { discovered.forEach { emit(it) } }
+            }
+            val vm = NasViewModel(repository)
+            val store = ViewModelStore().also { it.put("nas", vm) }
+            try {
+                assertEquals(saved.id, vm.connectedSourceIdFor(device))
+                vm.manual()
+                assertEquals(NasStage.LOGIN, vm.ui.value.stage)
+                vm.backToDevices()
+                assertEquals(NasStage.DEVICES, vm.ui.value.stage)
+                assertEquals(listOf(device), vm.ui.value.devices)
+                assertEquals(saved.id, vm.connectedSourceIdFor(device))
+            } finally { store.clear() }
+        }
+    }
+
+    @Test fun sameHostAndNameOnDifferentPortsStaySeparateAndOpenTheirOwnSource() = runTest {
+        val otherPort = device.copy(port = 1445)
+        val saved = SourceConfig("default-port", "Movies · ${device.name}", SourceType.SMB, "smb://${device.host}/Movies")
+        val other = SourceConfig("other-port", "Archive · ${device.name}", SourceType.SMB, "smb://${device.host}:1445/Archive")
+        val repository = object : SourceRepository by FakeSourceRepository(listOf(saved, other)) {
+            override fun discoverNetworkStorage() = flow { emit(otherPort); emit(device) }
+        }
+        val vm = NasViewModel(repository)
+        val store = ViewModelStore().also { it.put("nas", vm) }
+        try {
+            assertEquals(setOf(device, otherPort), vm.ui.value.devices.toSet())
+            assertEquals(saved.id, vm.connectedSourceIdFor(device))
+            assertEquals(other.id, vm.connectedSourceIdFor(otherPort))
+            vm.scan()
+            assertEquals(setOf(device, otherPort), vm.ui.value.devices.toSet())
+            assertEquals(saved.id, vm.connectedSourceIdFor(device))
+            assertEquals(other.id, vm.connectedSourceIdFor(otherPort))
+        } finally { store.clear() }
+    }
+
+    @Test fun savedHostnameAndDiscoveredIpMergeAtSamePortAndKeepPortScopedConnection() = runTest {
+        val saved = SourceConfig("saved", "Movies · ${device.name}", SourceType.SMB, "smb://living-room-nas/Movies")
+        var discovered = listOf(device)
+        val repository = object : SourceRepository by FakeSourceRepository(listOf(saved)) {
+            override fun discoverNetworkStorage() = flow { discovered.forEach { emit(it) } }
+        }
+        val vm = NasViewModel(repository)
+        val store = ViewModelStore().also { it.put("nas", vm) }
+        try {
+            vm.scan()
+            assertEquals(listOf(device), vm.ui.value.devices)
+            assertEquals(saved.id, vm.connectedSourceIdFor(device))
+            assertNull(vm.connectedSourceIdFor(device.copy(port = 1445)))
+            discovered = emptyList()
+            vm.scan()
+            assertEquals(listOf(device), vm.ui.value.devices)
+            assertEquals(saved.id, vm.connectedSourceIdFor(device))
+        } finally { store.clear() }
+    }
+
     @Test fun ipv4AndIpv6WithSameHostnameAreDeduplicatedPreferringIpv4() = runTest {
         val ipv6Device = NetworkStorageDevice(SourceType.SMB, "MyNAS", "fe80::1", 445)
         val ipv4Device = NetworkStorageDevice(SourceType.SMB, "MyNAS", "192.168.1.100", 445)

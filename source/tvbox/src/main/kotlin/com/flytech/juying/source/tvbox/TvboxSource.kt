@@ -31,7 +31,11 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -143,15 +147,26 @@ class TvboxSource @Inject constructor(
     override suspend fun search(config: SourceConfig, keyword: String, page: Int): List<VodItem> =
         search(config, keyword, page, null)
 
-    override suspend fun search(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): List<VodItem> {
+    override suspend fun search(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): List<VodItem> =
+        search(config, keyword, page, subSourceId, null)
+
+    override suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): com.flytech.juying.core.model.VodPage? =
+        try {
+            com.flytech.juying.core.model.VodPage(search(config, keyword, page, subSourceId, timeoutMillis))
+        } catch (error: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            null
+        }
+
+    private suspend fun search(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long?): List<VodItem> {
         require(page >= FIRST_PAGE) { "页码必须大于零" }
         if (keyword.isBlank()) return emptyList()
-        val loaded = loadConfig(config)
+        val loaded = if (timeoutMillis == null) loadConfig(config) else withTimeout(timeoutMillis) { loadConfig(config) }
         val site = loaded.site(config, subSourceId)
         if (site.searchable == SEARCH_DISABLED) return emptyList()
         val body = request(loaded, site, SpiderMethod.SEARCH, buildJsonArray {
             add(keyword.trim()); add(false); add(page.toString())
-        })
+        }, timeoutMillis)
         return items(body, config, site)
     }
 
@@ -199,7 +214,7 @@ class TvboxSource @Inject constructor(
     private suspend fun items(body: String, config: SourceConfig, site: TvboxSite): List<VodItem> =
         withContext(defaultDispatcher) { TvboxJson.videos(body).map { it.item(config.id, site.key) } }
 
-    private suspend fun request(loaded: LoadedConfig, site: TvboxSite, method: SpiderMethod, args: JsonArray): String {
+    private suspend fun request(loaded: LoadedConfig, site: TvboxSite, method: SpiderMethod, args: JsonArray, timeoutMillis: Long? = null): String {
         val siteType = TvboxSiteType.fromCode(site.type)
         if (siteType == TvboxSiteType.SPIDER) {
             val language = site.spiderLanguage()
@@ -213,7 +228,7 @@ class TvboxSource @Inject constructor(
                 api = if (language == SpiderLanguage.JAR) site.api else TvboxJson.httpUrl(site.api, loaded.baseUrl),
                 jar = jar, ext = site.ext ?: JsonNull,
             )
-            return spiders.get().call(SpiderCall(spec, method, args))
+            return spiders.get().call(SpiderCall(spec, method, args), timeoutMillis)
         }
         val action = if (siteType == TvboxSiteType.CMS_XML) "videolist" else "detail"
         val url = TvboxJson.httpUrl(site.api, loaded.baseUrl).toHttpUrl().newBuilder()
@@ -226,7 +241,8 @@ class TvboxSource @Inject constructor(
         }
         parameters.forEach { (key, value) -> url.setQueryParameter(key, value) }
         if (siteType == TvboxSiteType.HTTP_SPIDER && site.ext != null) url.setQueryParameter("extend", site.ext.toString())
-        val response = fetch(url.build().toString(), TvboxJson.headers(site.header))
+        val response = if (timeoutMillis == null) fetch(url.build().toString(), TvboxJson.headers(site.header))
+            else withTimeout(timeoutMillis) { fetch(url.build().toString(), TvboxJson.headers(site.header)) }
         return if (siteType == TvboxSiteType.CMS_XML) withContext(defaultDispatcher) { TvboxXml.response(response) } else response
     }
 
@@ -236,7 +252,7 @@ class TvboxSource @Inject constructor(
         }
 
     private suspend fun configDocument(url: String): Pair<String, JsonObject> = withContext(kotlinx.coroutines.Dispatchers.IO) {
-        client.get().newCall(okhttp3.Request.Builder().url(url).build()).await().use { response ->
+        client.get().newCall(okhttp3.Request.Builder().url(url).build()).await { response ->
             check(response.isSuccessful) { "订阅 HTTP ${response.code}" }
             val body = checkNotNull(response.body) { "订阅为空" }
             require(body.contentLength() <= RESPONSE_MAX_BYTES) { "订阅过大" }

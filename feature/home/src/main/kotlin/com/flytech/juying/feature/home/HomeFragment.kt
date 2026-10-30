@@ -82,7 +82,7 @@ class HomeFragment : ViewBindingFragment<FragmentHomeBinding>(FragmentHomeBindin
         binding.explore.setOnClickListener { navigator.openSources(this) }
         launchOnStarted { combine(sources.observeSources(SourceCapability.VOD), memory.updates) { configs, _ ->
             configs.firstOrNull { it.id == memory.selected(SourceCapability.VOD) } ?: configs.firstOrNull()
-        }.collect { vm.load(it?.id) } }
+        }.collect { vm.load(it) } }
         launchOnStarted { combine(history.observeRecent(4), sources.observeSources(), vm.recommendations) { entries, configs, items ->
             Triple(entries, configs, items)
         }.collectLatest { (entries, configs, items) ->

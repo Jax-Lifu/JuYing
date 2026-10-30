@@ -19,9 +19,11 @@ build/
 .impeccable/
 design/
 /.venv/
+__pycache__/
 
 # Internal research and dev verification logs
 docs/research/
+docs/VERIFICATION*.md
 docs/TVBOX_PRESET_AUDIT.md
 docs/UX_12_VERIFICATION_20261027.md
 docs/FONGMI_COMPATIBILITY.md

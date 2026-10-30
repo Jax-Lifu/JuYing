@@ -23,6 +23,10 @@
     <style name="JyToolbarAction" parent="JyAction">
         <item name="android:background">@drawable/bg_toolbar_action</item>
     </style>
+    <style name="JySourceSwitch" parent="JyToolbarAction">
+        <item name="android:textColor">?attr/jy_accent</item>
+        <item name="android:drawableTint">?attr/jy_accent</item>
+    </style>
     <style name="JyTitle">
         <item name="android:textColor">?attr/jy_on_surface</item>
         <item name="android:textSize">@dimen/jy_text_title</item>

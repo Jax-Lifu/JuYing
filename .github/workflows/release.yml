@@ -42,16 +42,71 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Test build scripts
+        run: python scripts/tests/test_build_apk_shells.py
+
+      - name: Test and build Debug
         env:
           PYTHON_311: ${{ steps.setup-python.outputs.python-path }}
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: ./gradlew testDebugUnitTest :core:model:test :source:api:test :app:assembleDebug --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Prepare release signing
+        env:
+          JUYING_KEYSTORE_BASE64: ${{ secrets.JUYING_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$JUYING_KEYSTORE_BASE64" || { echo "Missing JUYING_KEYSTORE_BASE64 secret"; exit 1; }
+          umask 077
+          printf '%s' "$JUYING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/juying-release.jks"
+
+      - name: Build Release APKs for all architectures
+        env:
+          PYTHON_311: ${{ steps.setup-python.outputs.python-path }}
+          JUYING_KEYSTORE_PATH: ${{ runner.temp }}/juying-release.jks
+          JUYING_KEYSTORE_PASSWORD: ${{ secrets.JUYING_KEYSTORE_PASSWORD }}
+          JUYING_KEY_ALIAS: ${{ secrets.JUYING_KEY_ALIAS }}
+          JUYING_KEY_PASSWORD: ${{ secrets.JUYING_KEY_PASSWORD }}
+        run: |
+          version_args=()
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version_args+=("-PappVersion=${GITHUB_REF_NAME#v}")
+          fi
+          for abi in arm64-v8a armeabi-v7a universal; do
+            abi_args=()
+            if [ "$abi" != "universal" ]; then
+              abi_args+=("-PtargetAbi=$abi")
+            fi
+            ./gradlew :app:assembleRelease "${version_args[@]}" "${abi_args[@]}" --stacktrace
+          done
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/juying-release.jks"
+
+      - name: Upload universal APK and mapping
         uses: actions/upload-artifact@v4
         with:
-          name: JuYing-Release-APK
-          path: app/build/outputs/apk/release/*.apk
+          name: JuYing-Release-universal
+          path: |
+            dist/*/JuYing_release_*_universal.apk
+            dist/*/JuYing_release_*_universal_mapping.txt
+          if-no-files-found: error
+
+      - name: Upload ARM64 APK and mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: JuYing-Release-arm64-v8a
+          path: |
+            dist/*/JuYing_release_*_arm64-v8a.apk
+            dist/*/JuYing_release_*_arm64-v8a_mapping.txt
+          if-no-files-found: error
+
+      - name: Upload ARMv7 APK and mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: JuYing-Release-armeabi-v7a
+          path: |
+            dist/*/JuYing_release_*_armeabi-v7a.apk
+            dist/*/JuYing_release_*_armeabi-v7a_mapping.txt
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -63,8 +118,9 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            app/build/outputs/apk/release/*.apk
-            dist/*/*_mapping.txt
+            dist/*/JuYing_release_*.apk
+            dist/*/JuYing_release_*_mapping.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,9 +1,18 @@
 package com.flytech.juying.source.smb
 
+import android.net.Uri
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.TransferListener
 import com.flytech.juying.core.model.SourceConfig
 import com.flytech.juying.core.model.SourceType
+import com.hierynomus.msdtyp.AccessMask
+import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
+import com.hierynomus.mssmb2.SMB2CreateDisposition
+import com.hierynomus.mssmb2.SMB2CreateOptions
 import com.hierynomus.mssmb2.SMB2Dialect
+import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
@@ -16,7 +25,9 @@ import com.hierynomus.smbj.paths.PathResolver
 import com.hierynomus.smbj.server.ServerList
 import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
+import com.hierynomus.smbj.share.TestSmbFile
 import com.hierynomus.smbj.share.TreeConnect
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -110,6 +121,63 @@ class SmbConnectionsTest {
         } finally { listing.cancelAndJoin() }
     }
 
+    @Test fun closingPlaybackReleasesEachFileOnceAndKeepsTheConnectionReusable() {
+        for (failClose in listOf(false, true)) {
+            val client = TestClient()
+            val connections = SmbConnections { client }
+            val target = SmbTarget("nas", "movies", "", "user", "correct")
+            val share = connections.share(target, useTargetCredentials = true) as TestShare
+            val source = SmbDataSource(connections)
+            val transfers = TransferCounter()
+            source.addTransferListener(transfers)
+            val request = DataSpec(Uri.parse(target.toPlayUri("movie.mkv")))
+
+            assertEquals(10L, source.open(request))
+            val first = share.files.single().also { it.failClose = failClose }
+            if (failClose) assertThrows(IOException::class.java) { source.close() } else source.close()
+            source.close()
+
+            assertEquals(1, first.closeCalls)
+            assertNull(source.uri)
+            assertEquals(1, transfers.ended)
+            assertFalse(share.closed)
+            assertFalse(client.connections.single().closed)
+            assertEquals(10L, source.open(request))
+            assertEquals(2, share.files.size)
+            assertEquals(1, client.authentications)
+            source.close()
+            assertEquals(1, share.files.last().closeCalls)
+            assertEquals(2, transfers.ended)
+        }
+    }
+
+    @Test fun closingAfterMetadataFailureReleasesTheFileWithoutEndingAnUnstartedTransfer() {
+        val client = TestClient()
+        val connections = SmbConnections { client }
+        val target = SmbTarget("nas", "movies", "", "user", "correct")
+        val share = connections.share(target, useTargetCredentials = true) as TestShare
+        share.failFileInfo = true
+        val source = SmbDataSource(connections)
+        val transfers = TransferCounter()
+        source.addTransferListener(transfers)
+
+        assertThrows(IOException::class.java) { source.open(DataSpec(Uri.parse(target.toPlayUri("movie.mkv")))) }
+        source.close()
+        source.close()
+
+        assertEquals(1, share.files.single().closeCalls)
+        assertNull(source.uri)
+        assertEquals(0, transfers.ended)
+    }
+
+    private class TransferCounter : TransferListener {
+        var ended = 0
+        override fun onTransferInitializing(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+        override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+        override fun onBytesTransferred(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean, bytesTransferred: Int) = Unit
+        override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) { ended++ }
+    }
+
     private class TestClient : SMBClient(config) {
         val connections = mutableListOf<TestConnection>()
         var authentications = 0
@@ -134,10 +202,15 @@ class SmbConnectionsTest {
     private class TestShare(session: Session, name: String) : DiskShare(SmbPath("nas", name),
         TreeConnect(1, SmbPath("nas", name), session, emptySet(), config, context(), null, emptySet(), emptySet()), PathResolver.LOCAL) {
         var closed = false
+        var failFileInfo = false
+        val files = mutableListOf<TestSmbFile>()
         val listingStarted = CountDownLatch(1)
         var listingInterrupted = false
         override fun isConnected() = !closed
         override fun close() { closed = true }
+        override fun openFile(path: String, accessMask: Set<AccessMask>, attributes: Set<FileAttributes>?,
+            shareAccess: Set<SMB2ShareAccess>, disposition: SMB2CreateDisposition, options: Set<SMB2CreateOptions>?) =
+            TestSmbFile(this, path, failFileInfo).also(files::add)
         override fun list(path: String): MutableList<FileIdBothDirectoryInformation> {
             listingStarted.countDown()
             try { CountDownLatch(1).await(5, TimeUnit.SECONDS) }

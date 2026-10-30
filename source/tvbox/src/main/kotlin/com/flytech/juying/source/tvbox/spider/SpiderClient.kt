@@ -33,8 +33,8 @@ class SpiderClient @Inject constructor(@ApplicationContext private val context: 
     private var stopping: CompletableDeferred<Unit>? = null
     private val idle = Runnable { disconnect() }
 
-    internal suspend fun call(call: SpiderCall): String = gate.withLock {
-        withContext(Dispatchers.Main.immediate) {
+    internal suspend fun call(call: SpiderCall, timeoutMillis: Long? = null): String = gate.withLock {
+        val execute: suspend () -> String = { withContext(Dispatchers.Main.immediate) {
             handler.removeCallbacks(idle)
             val result = CompletableDeferred<String>()
             // 每次调用拥有自己的回复端点，迟到回复不能完成下一次请求。
@@ -63,7 +63,8 @@ class SpiderClient @Inject constructor(@ApplicationContext private val context: 
                 if (completed) handler.postDelayed(idle, SpiderLimits.IDLE_TIMEOUT_MS)
                 else disconnect()
             }
-        }
+        } }
+        if (timeoutMillis == null) execute() else withTimeout(timeoutMillis) { execute() }
     }
 
     private suspend fun connect(): Messenger {

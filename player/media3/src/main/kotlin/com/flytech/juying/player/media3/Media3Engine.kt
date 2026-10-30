@@ -99,6 +99,9 @@ class Media3Engine(
         }
         override fun onIsPlayingChanged(isPlaying: Boolean) = _state.update { it.copy(isPlaying = isPlaying) }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
+            _state.update { it.copy(playWhenReady = playWhenReady) }
+
         override fun onPlaybackStateChanged(playbackState: Int) = _state.update {
             it.copy(
                 isBuffering = playbackState == Player.STATE_BUFFERING,
@@ -117,6 +120,7 @@ class Media3Engine(
 
     init {
         player.addListener(listener)
+        _state.update { it.copy(playWhenReady = player.playWhenReady) }
     }
 
     override fun setSurfaceView(view: SurfaceView?) {
@@ -135,7 +139,8 @@ class Media3Engine(
 
     override fun prepare(item: PlayItem) {
         pendingHighestVideoQuality = false
-        _state.update { PlayerState(isBuffering = true) }
+        _state.update { PlayerState(isBuffering = true, playWhenReady = player.playWhenReady) }
+        if (item.isLive) player.setPlaybackSpeed(1f)
         // A fixed quality belongs to this item; a new line may expose different video groups.
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
             .clearOverridesOfType(C.TRACK_TYPE_VIDEO).build()
@@ -149,7 +154,8 @@ class Media3Engine(
             .build()
         val mediaSource = DefaultMediaSourceFactory(dataSourceFactory.forHeaders(item.headers))
             .createMediaSource(mediaItem)
-        player.setMediaSource(mediaSource, item.startPositionMs)
+        // Live positions belong to a moving window and cannot be reused across lines.
+        player.setMediaSource(mediaSource, if (item.isLive) C.TIME_UNSET else item.startPositionMs)
         pendingHighestVideoQuality = item.preferHighestVideoQuality
         player.prepare()
     }

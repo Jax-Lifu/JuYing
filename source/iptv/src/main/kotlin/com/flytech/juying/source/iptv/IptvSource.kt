@@ -92,9 +92,9 @@ class IptvSource @Inject constructor(
             config.extra["userAgent"]?.takeIf(String::isNotBlank)?.let { header("User-Agent", it) }
             config.extra["referer"]?.takeIf(String::isNotBlank)?.let { header("Referer", it) }
         }.build()
-        val programmes = client.get().newCall(request).await().use { response ->
+        val programmes = client.get().newCall(request).await { response ->
             check(response.isSuccessful) { "Guide unavailable" }
-            val body = response.body ?: return@withContext emptyList()
+            val body = response.body ?: return@await emptyList()
             val source = body.source()
             val gzip = source.request(2) && source.buffer[0] == 0x1f.toByte() && source.buffer[1] == 0x8b.toByte()
             val input = if (gzip) java.util.zip.GZIPInputStream(source.inputStream()) else source.inputStream()

@@ -1,8 +1,8 @@
 <resources>
-  <color name="theme_juying_primary">#F5F4F1</color>
-  <color name="theme_juying_secondary">#ADB3BF</color>
-  <color name="theme_juying_light_primary">#171C1E</color>
-  <color name="theme_juying_light_secondary">#526168</color>
+  <color name="theme_juying_primary">#FFF4E5</color>
+  <color name="theme_juying_secondary">#C7B8A5</color>
+  <color name="theme_juying_light_primary">#261D14</color>
+  <color name="theme_juying_light_secondary">#6D5E4C</color>
   <color name="theme_juying_black_primary">#FFFFFF</color>
-  <color name="theme_juying_black_secondary">#B3BDC4</color>
+  <color name="theme_juying_black_secondary">#C9BAA8</color>
 </resources>

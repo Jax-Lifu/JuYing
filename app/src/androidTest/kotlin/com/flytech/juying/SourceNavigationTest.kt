@@ -49,16 +49,18 @@ class SourceNavigationTest {
                 }
                 val live = instrumentation.targetContext.getString(DesignR.string.ui_live)
                 val vod = instrumentation.targetContext.getString(DesignR.string.ui_vod)
-                withTimeout(5_000) {
-                    while (true) {
-                        scenario.onActivity { assertEquals("Home must offer both CCTV capabilities", R.id.nav_home, destination(it)) }
-                        val liveChoice = capabilityChoice(live)
-                        val vodChoice = capabilityChoice(vod)
-                        if (liveChoice != null && vodChoice != null) {
-                            assertTrue(vodChoice.performAction(AccessibilityNodeInfo.ACTION_CLICK))
-                            break
+                instrumentation.withDialogWindows {
+                    withTimeout(5_000) {
+                        while (true) {
+                            scenario.onActivity { assertEquals("Home must offer both CCTV capabilities", R.id.nav_home, destination(it)) }
+                            val liveChoice = instrumentation.findDialogListChoice(live)
+                            val vodChoice = instrumentation.findDialogListChoice(vod)
+                            if (liveChoice != null && vodChoice != null) {
+                                instrumentation.clickDialogListChoice(vodChoice)
+                                break
+                            }
+                            delay(100)
                         }
-                        delay(100)
                     }
                 }
                 waitFor(scenario) { destination(it) == R.id.nav_vod }
@@ -116,10 +118,6 @@ class SourceNavigationTest {
         return recycler.findViewHolderForAdapterPosition(index)?.itemView
     }
 
-    private fun capabilityChoice(label: String): AccessibilityNodeInfo? =
-        instrumentation.uiAutomation.rootInActiveWindow?.findAccessibilityNodeInfosByText(label)
-            ?.firstOrNull { it.text?.toString() == label && it.parent?.className?.toString() == "android.widget.ListView" }
-
     private fun picker(activity: MainActivity) = activity.supportFragmentManager.findFragmentByTag("source-picker") as? SourcePickerDialog
     private fun destination(activity: MainActivity) =
         (activity.supportFragmentManager.findFragmentById(R.id.nav_host) as NavHostFragment).navController.currentDestination?.id
@@ -144,5 +142,42 @@ class SourceNavigationTest {
                 previous.forEach { (key, value) -> putString(key, value as String?) }
             }.commit()
         }
+    }
+}
+
+internal inline fun <T> android.app.Instrumentation.withDialogWindows(block: () -> T): T {
+    val automation = uiAutomation
+    val flags = automation.serviceInfo.flags
+    automation.serviceInfo = automation.serviceInfo.apply {
+        this.flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+    }
+    try { return block() }
+    finally { automation.serviceInfo = automation.serviceInfo.apply { this.flags = flags } }
+}
+
+internal fun android.app.Instrumentation.findDialogListChoice(label: String): AccessibilityNodeInfo? {
+    fun find(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        for (index in 0 until node.childCount) {
+            val child = node.getChild(index) ?: continue
+            if (node.className == "android.widget.ListView" && child.text?.toString() == label && child.isVisibleToUser) return child
+            find(child)?.let { return it }
+        }
+        return null
+    }
+    // A dialog has its own window; the active root can still be the underlying activity.
+    return uiAutomation.windows.firstNotNullOfOrNull { window ->
+        window.root?.takeIf { it.packageName == targetContext.packageName }?.let(::find)
+    }
+}
+
+internal fun android.app.Instrumentation.clickDialogListChoice(choice: AccessibilityNodeInfo) {
+    val bounds = android.graphics.Rect().also(choice::getBoundsInScreen)
+    assertTrue("Dialog choice must be visible and enabled", choice.isVisibleToUser && choice.isEnabled && !bounds.isEmpty)
+    val downTime = android.os.SystemClock.uptimeMillis()
+    // ListView owns item clicks; its TextView label need not expose ACTION_CLICK.
+    for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
+        val event = android.view.MotionEvent.obtain(downTime, android.os.SystemClock.uptimeMillis(), action,
+            bounds.exactCenterX(), bounds.exactCenterY(), 0).apply { source = android.view.InputDevice.SOURCE_TOUCHSCREEN }
+        try { sendPointerSync(event) } finally { event.recycle() }
     }
 }

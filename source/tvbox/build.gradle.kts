@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.flytech.juying.source.tvbox"
     defaultConfig {
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        ndk { abiFilters += providers.gradleProperty("targetAbi").orNull?.let(::listOf) ?: listOf("arm64-v8a", "armeabi-v7a") }
         consumerProguardFiles("consumer-rules.pro")
     }
 }

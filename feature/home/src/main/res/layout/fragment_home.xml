@@ -1,8 +1,8 @@
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/jy_padding">
-  <TextView android:id="@+id/recommendation_heading" style="@style/JyTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:maxLines="2" android:ellipsize="end" android:visibility="gone"/>
+  <TextView android:id="@+id/recommendation_heading" style="@style/JyTitle" android:textSize="24sp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" android:maxLines="2" android:ellipsize="end" android:visibility="gone"/>
   <androidx.recyclerview.widget.RecyclerView android:id="@+id/recommendations" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:visibility="gone"/>
-  <LinearLayout android:id="@+id/recommendation_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="vertical">
+  <LinearLayout android:id="@+id/recommendation_empty" android:background="@drawable/bg_media_artwork" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="vertical">
    <TextView style="@style/JyTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_welcome"/>
    <TextView style="@style/JyBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/ui_welcome_body"/>
    <com.google.android.material.button.MaterialButton android:id="@+id/explore" android:layout_width="wrap_content" android:layout_height="@dimen/jy_touch_height" android:layout_marginTop="12dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/ui_explore" app:cornerRadius="@dimen/jy_radius" app:icon="@drawable/ic_vod"/>
@@ -13,7 +13,7 @@
   </LinearLayout>
   <TextView android:id="@+id/empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:text="@string/ui_history_hint" android:textColor="?attr/jy_on_surface_secondary"/>
   <androidx.recyclerview.widget.RecyclerView android:id="@+id/recent" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
-  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_recent_sources" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="24dp" android:layout_marginBottom="12dp"/>
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_recent_sources" android:textColor="?attr/jy_on_surface" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="24dp" android:layout_marginBottom="12dp"/>
   <androidx.recyclerview.widget.RecyclerView android:id="@+id/sources" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
   <com.google.android.material.button.MaterialButton android:id="@+id/add_source" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="56dp" android:text="@string/ui_add_source" android:layout_marginTop="16dp" app:icon="@drawable/ic_settings"/>
  </LinearLayout>

@@ -2,6 +2,8 @@ package com.flytech.juying.feature.home
 
 import com.flytech.juying.core.model.HistoryEntry
 import com.flytech.juying.core.model.PlayKind
+import com.flytech.juying.core.model.SourceConfig
+import com.flytech.juying.core.model.SourceType
 import com.flytech.juying.core.model.VodCategory
 import com.flytech.juying.core.model.VodItem
 import com.flytech.juying.core.testing.FakeVodRepository
@@ -12,6 +14,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -55,9 +60,9 @@ class HomeViewModelTest {
             }
         }
         val vm = HomeViewModel(repo)
-        vm.load("slow")
-        vm.load("next")
-        vm.load("next")
+        vm.load(source("slow"))
+        vm.load(source("next"))
+        vm.load(source("next"))
         pending.complete(listOf(VodItem("old", "slow", "Old")))
         assertEquals(listOf("slow", "next"), calls)
         assertEquals("next", vm.recommendations.value.single().sourceId)
@@ -76,7 +81,7 @@ class HomeViewModelTest {
                 return items
             }
         })
-        vm.load("source")
+        vm.load(source("source"))
         assertEquals(listOf("first" to 1), calls)
         assertEquals(items.take(24), vm.recommendations.value)
     }
@@ -86,7 +91,77 @@ class HomeViewModelTest {
         val vm = HomeViewModel(object : FakeVodRepository() {
             override suspend fun categories(sourceId: String): List<VodCategory> = error("offline")
         })
-        vm.load("offline")
+        vm.load(source("offline"))
         assertEquals(emptyList<VodItem>(), vm.recommendations.value)
     }
+
+    @Test
+    fun `same source id reloads changed configuration but reuses a successful result`() = runTest {
+        var requests = 0
+        val vm = HomeViewModel(object : FakeVodRepository() {
+            override suspend fun categories(sourceId: String) = listOf(VodCategory("category", "Category"))
+            override suspend fun list(sourceId: String, categoryId: String, page: Int) =
+                listOf(VodItem("film-${++requests}", sourceId, "Film $requests"))
+        })
+        val original = source("same")
+        vm.load(original)
+        vm.load(original.copy())
+        assertEquals(1, requests)
+        vm.load(original.copy(url = "https://changed.test/config"))
+        assertEquals(2, requests)
+        assertEquals("film-2", vm.recommendations.value.single().id)
+    }
+
+    @Test
+    fun `failed recommendation request can retry the same configuration`() = runTest {
+        var attempts = 0
+        val vm = HomeViewModel(object : FakeVodRepository() {
+            override suspend fun categories(sourceId: String): List<VodCategory> {
+                if (++attempts == 1) error("offline")
+                return listOf(VodCategory("category", "Category"))
+            }
+            override suspend fun list(sourceId: String, categoryId: String, page: Int) = listOf(VodItem("film", sourceId, "Recovered"))
+        })
+        val config = source("retry")
+        vm.load(config)
+        assertEquals(emptyList<VodItem>(), vm.recommendations.value)
+        vm.load(config)
+        vm.load(config)
+        assertEquals(2, attempts)
+        assertEquals("Recovered", vm.recommendations.value.single().title)
+    }
+
+    @Test
+    fun `successful empty recommendations are cached`() = runTest {
+        var attempts = 0
+        val vm = HomeViewModel(object : FakeVodRepository() {
+            override suspend fun categories(sourceId: String): List<VodCategory> { attempts++; return emptyList() }
+        })
+        vm.load(source("empty"))
+        vm.load(source("empty"))
+        assertEquals(1, attempts)
+    }
+
+    @Test
+    fun `late result from old configuration cannot replace the new result`() = runTest {
+        var continuation: Continuation<List<VodItem>>? = null
+        var attempts = 0
+        val vm = HomeViewModel(object : FakeVodRepository() {
+            override suspend fun categories(sourceId: String) = listOf(VodCategory("category", "Category"))
+            override suspend fun list(sourceId: String, categoryId: String, page: Int): List<VodItem> {
+                if (++attempts == 1) return suspendCoroutine { continuation = it }
+                return listOf(VodItem("new", sourceId, "New configuration"))
+            }
+        })
+        val original = source("same")
+        vm.load(original)
+        vm.load(original)
+        assertEquals(1, attempts)
+        vm.load(original.copy(url = "https://changed.test/config"))
+        continuation!!.resume(listOf(VodItem("old", original.id, "Old configuration")))
+        assertEquals(2, attempts)
+        assertEquals("new", vm.recommendations.value.single().id)
+    }
+
+    private fun source(id: String) = SourceConfig(id, id, SourceType.TVBOX, "https://$id.test/config")
 }

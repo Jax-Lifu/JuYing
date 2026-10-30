@@ -3,7 +3,6 @@ package com.flytech.juying.source.smb
 import android.net.Uri
 import com.flytech.juying.core.model.SourceConfig
 import java.net.URI
-import java.net.URLDecoder
 import java.net.URLEncoder
 
 /**
@@ -58,10 +57,10 @@ internal data class SmbTarget(
         fun fromPlayUri(uri: Uri): SmbTarget {
             val address = URI(uri.toString())
             require(address.host != null) { "SMB 播放地址格式无效" }
-            val rawUserInfo = uri.userInfo ?: "guest"
-            val user = URLDecoder.decode(rawUserInfo.substringBefore(':'), Charsets.UTF_8.name())
+            val rawUserInfo = uri.encodedUserInfo ?: "guest"
+            val user = Uri.decode(rawUserInfo.substringBefore(':'))
             val inlinePass = if (':' in rawUserInfo) {
-                URLDecoder.decode(rawUserInfo.substringAfter(':'), Charsets.UTF_8.name())
+                Uri.decode(rawUserInfo.substringAfter(':'))
             } else {
                 ""
             }

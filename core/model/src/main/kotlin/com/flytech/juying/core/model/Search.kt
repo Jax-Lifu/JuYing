@@ -16,5 +16,6 @@ sealed interface SearchUpdate {
         val target: SearchTarget,
         val outcome: SearchOutcome,
         val items: List<VodItem> = emptyList(),
+        val hasMore: Boolean? = null,
     ) : SearchUpdate
 }

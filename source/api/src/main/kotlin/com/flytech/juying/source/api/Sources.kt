@@ -15,6 +15,7 @@ import com.flytech.juying.core.model.VodCategory
 import com.flytech.juying.core.model.VodDetail
 import com.flytech.juying.core.model.VodItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * 数据源的统一抽象。一个 Provider 对应一种 [SourceType]，可按需正交组合实现 [LiveSource]、[VodSource]、[BrowseSource]。
@@ -63,6 +64,14 @@ interface SearchableSource : SourceProvider {
         require(subSourceId == null) { "该源不支持子站点搜索" }
         return search(config, keyword, page)
     }
+
+    /** 目录筛选源须保留原始页的结束标记，不能把本页无匹配当成搜索结束。 */
+    suspend fun searchPage(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): com.flytech.juying.core.model.VodPage =
+        com.flytech.juying.core.model.VodPage(search(config, keyword, page, subSourceId))
+
+    /** null 表示执行超时；串行运行时可在取得执行槽后计时，等待仍须响应取消。 */
+    suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): com.flytech.juying.core.model.VodPage? =
+        withTimeoutOrNull(timeoutMillis) { searchPage(config, keyword, page, subSourceId) }
 }
 
 /** 直播数据源能力契约。 */

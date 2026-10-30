@@ -36,6 +36,8 @@ import com.flytech.juying.source.api.VodSource
 import com.flytech.juying.source.api.SourceDiscoveryProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -59,6 +61,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +85,9 @@ class DefaultSourceRepository @Inject constructor(
     private val settings: SettingsDataSource,
 ) : SourceRepository {
     private val presetLock = Mutex()
+    // 名称补全属于仓储生命周期，不能拖住列表发射或随 first() 订阅结束而取消。
+    private val hostnameScope = CoroutineScope(SupervisorJob() + kotlinx.coroutines.Dispatchers.IO.limitedParallelism(1))
+    private val pendingHostnames = ConcurrentHashMap.newKeySet<SourceEntity>()
     override fun capabilities(config: SourceConfig) = registry.capabilitiesOf(config)
     override fun urlSetups() = registry.urlSetups()
 
@@ -109,23 +115,29 @@ class DefaultSourceRepository @Inject constructor(
                 }
             }
         }.map { rows ->
-            val list = rows.mapNotNull { read(it) }
             val smbStorage = registry.networkStorage().firstOrNull { it.type == SourceType.SMB }
-            if (smbStorage != null) {
-                list.map { cfg ->
-                    if (cfg.type == SourceType.SMB) {
-                        val host = runCatching { java.net.URI(cfg.url).host }.getOrNull()
-                        if (host != null && host in cfg.name) {
-                            val resolved = smbStorage.resolveHostname(host)
-                            if (!resolved.isNullOrBlank() && resolved != host) {
-                                val updated = cfg.copy(name = cfg.name.replace(host, resolved))
-                                dao.upsert(protect(updated.toEntity()))
-                                updated
-                            } else cfg
-                        } else cfg
-                    } else cfg
+            rows.mapNotNull { row ->
+                val cfg = read(row) ?: return@mapNotNull null
+                if (smbStorage != null && cfg.enabled && cfg.type == SourceType.SMB) {
+                    val host = runCatching { java.net.URI(cfg.url).host }.getOrNull()
+                    if (host != null && host in cfg.name && pendingHostnames.add(row)) {
+                        hostnameScope.launch {
+                            try {
+                                val resolved = smbStorage.resolveHostname(host)
+                                if (!resolved.isNullOrBlank() && resolved != host) {
+                                    dao.renameIfUnchanged(row, cfg.name.replace(host, resolved))
+                                }
+                            } catch (error: Exception) {
+                                if (error is CancellationException) throw error
+                                Timber.w("SMB hostname lookup failed: %s", error.javaClass.simpleName)
+                            } finally {
+                                pendingHostnames.remove(row)
+                            }
+                        }
+                    }
                 }
-            } else list
+                cfg
+            }
         }.flowOn(kotlinx.coroutines.Dispatchers.IO)
         if (discoveryProviders.isEmpty()) {
             return dbFlow
@@ -155,12 +167,17 @@ class DefaultSourceRepository @Inject constructor(
     }
 
     override suspend fun check(config: SourceConfig): Int = kotlinx.coroutines.withTimeout(20_000) {
+        val capabilities = capabilities(config)
         when {
-            registry.supportsVod(config.type) -> registry.vod(config.type).let { provider ->
-                provider.subSources(config).takeIf { it.isNotEmpty() }?.size ?: provider.categories(config).size
+            SourceCapability.VOD in capabilities -> registry.vod(config.type).let { provider ->
+                provider.subSources(config).takeIf { it.isNotEmpty() }?.size ?: run {
+                    val channels = if (SourceCapability.LIVE in capabilities)
+                        registry.live(config.type).channels(config).sumOf { it.channels.size } else 0
+                    if (channels > 0) channels else provider.categories(config).size
+                }
             }
-            registry.supportsLive(config.type) -> registry.live(config.type).channels(config).sumOf { it.channels.size }
-            registry.supportsBrowse(config.type) -> registry.browse(config.type).list(config, "").size
+            SourceCapability.LIVE in capabilities -> registry.live(config.type).channels(config).sumOf { it.channels.size }
+            SourceCapability.BROWSE in capabilities -> registry.browse(config.type).list(config, "").size
             else -> error("Source unavailable")
         }
     }
@@ -437,7 +454,8 @@ class DefaultVodRepository @Inject constructor(
         val trimmed = keyword.trim()
         val isPinyin = trimmed.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() }
         val searchKeywords = if (isPinyin && trimmed.length >= 2) {
-            val suggestions = runCatching { suggestService?.suggest(trimmed)?.take(2).orEmpty() }.getOrDefault(emptyList())
+            val suggestions = try { suggestService?.suggest(trimmed)?.take(2).orEmpty() }
+                catch (error: Exception) { if (error is CancellationException) throw error else emptyList() }
             (listOf(trimmed) + suggestions).distinct()
         } else {
             listOf(trimmed)
@@ -474,20 +492,30 @@ class DefaultVodRepository @Inject constructor(
                     try {
                         val collected = mutableListOf<VodItem>()
                         var hasSuccess = false
+                        var timedOut = false
+                        var hasMore: Boolean? = false
                         for (kw in searchKeywords) {
-                            val items = runCatching {
-                                withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
-                                    if (provider is VodSource) provider.search(config, kw, page, target.subSource?.id)
-                                    else provider.search(config, kw, page)
-                                }
-                            }.getOrNull()
-                            if (items != null) {
-                                hasSuccess = true
-                                collected.addAll(items)
+                            val result = try {
+                                provider.searchPageWithTimeout(config, kw, page, target.subSource?.id, SEARCH_TIMEOUT_MS)
+                            } catch (error: Exception) {
+                                if (error is CancellationException) throw error
+                                continue
+                            }
+                            if (result == null) { timedOut = true; continue }
+                            hasSuccess = true
+                            collected.addAll(result.items)
+                            hasMore = when {
+                                hasMore == true || result.hasMore == true -> true
+                                hasMore == null || result.hasMore == null -> null
+                                else -> false
                             }
                         }
-                        val outcome = if (hasSuccess) SearchOutcome.SUCCESS else SearchOutcome.FAILED
-                        SearchUpdate.Finished(target, outcome, collected.distinctBy { it.id })
+                        val outcome = when {
+                            hasSuccess -> SearchOutcome.SUCCESS
+                            timedOut -> SearchOutcome.TIMED_OUT
+                            else -> SearchOutcome.FAILED
+                        }
+                        SearchUpdate.Finished(target, outcome, collected.distinctBy { it.id }, hasMore)
                     } catch (error: Exception) {
                         if (error is CancellationException) throw error
                         Timber.w("Source search failed: %s", error.javaClass.simpleName)

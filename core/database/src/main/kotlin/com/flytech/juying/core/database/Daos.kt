@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /** 数据源持久化数据访问对象（Room DAO）。 */
@@ -20,6 +21,16 @@ interface SourceDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPreset(entity: SourceEntity)
+
+    @Query("UPDATE sources SET name = :name WHERE id = :id")
+    suspend fun updateName(id: String, name: String)
+
+    @Transaction
+    suspend fun renameIfUnchanged(snapshot: SourceEntity, name: String): Boolean {
+        if (get(snapshot.id) != snapshot) return false
+        updateName(snapshot.id, name)
+        return true
+    }
 
     // 迁移只替换仍与读出快照一致的密文字段，不能覆盖同时发生的编辑或删除。
     @Query("UPDATE sources SET url=:url, username=:username, password=:password, extraJson=:extra WHERE id=:id AND url=:oldUrl AND username IS :oldUsername AND password IS :oldPassword AND extraJson=:oldExtra")

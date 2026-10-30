@@ -9,7 +9,7 @@
 #   ./scripts/run.sh --release              编译 Release，单设备直装 / 多设备交互选择
 #   ./scripts/run.sh --release --all        编译 Release，安装并打开所有在线设备
 #   ./scripts/run.sh --device qytech6666    指定设备序列号安装
-#   ./scripts/run.sh --skip-build --all     跳过编译，直接安装最新 APK 到所有设备
+#   ./scripts/run.sh --skip-build --all     跳过编译，直接安装最新通用双架构 APK 到所有设备
 # ============================================================================
 
 set -euo pipefail
@@ -143,13 +143,13 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
     fi
 else
     echo ""
-    echo "[1/3] 已跳过编译 (--skip-build)，直接查找最新 APK..."
+    echo "[1/3] 已跳过编译 (--skip-build)，直接查找最新通用双架构 APK..."
 fi
 
 APK_DIR="$PROJECT_ROOT/app/build/outputs/apk/$BUILD_TYPE"
-APK_FILE="$(ls -t "$APK_DIR"/*.apk 2>/dev/null | head -n1 || true)"
+APK_FILE="$(ls -t "$APK_DIR"/JuYing_"$BUILD_TYPE"_*_universal.apk 2>/dev/null | head -n1 || true)"
 if [[ -z "$APK_FILE" || ! -f "$APK_FILE" ]]; then
-    echo "错误: 未在 $APK_DIR 下找到 APK 文件。" >&2
+    echo "错误: 未在 $APK_DIR 下找到通用双架构 APK（*_universal.apk），请先不带 --skip-build 运行以编译通用包。" >&2
     exit 1
 fi
 echo "      产物文件: $(basename "$APK_FILE")"
@@ -236,22 +236,19 @@ fi
 # 5. 安装并启动
 echo ""
 echo "[3/3] 开始安装并打开应用 ($(basename "$APK_FILE"))..."
+INSTALL_FAILED=0
 for i in "${TARGET_INDICES[@]}"; do
     s="${SERIALS[$i]}"
     m="${MODELS[$i]}"
     echo ""
     echo "  --> 目标设备: $s ($m, ${AVERS[$i]})"
-    install_out="$("$ADB_BIN" -s "$s" install -r "$APK_FILE" </dev/null 2>&1 || true)"
-    if [[ "$install_out" != *"Success"* ]]; then
-        if [[ "$install_out" =~ INSTALL_FAILED_VERSION_DOWNGRADE|INSTALL_FAILED_UPDATE_INCOMPATIBLE ]]; then
-            echo "      检测到旧版签名或版本号冲突，正在卸载旧版后重装..."
-            "$ADB_BIN" -s "$s" uninstall "$APP_PACKAGE" </dev/null >/dev/null 2>&1 || true
-            install_out="$("$ADB_BIN" -s "$s" install -r "$APK_FILE" </dev/null 2>&1 || true)"
-        fi
-    fi
-    if [[ "$install_out" != *"Success"* ]]; then
+    install_status=0
+    install_out="$("$ADB_BIN" -s "$s" install -r "$APK_FILE" </dev/null 2>&1)" || install_status=$?
+    if [[ "$install_status" -ne 0 || "$install_out" != *"Success"* ]]; then
+        INSTALL_FAILED=1
         echo "      [失败] 安装到 $s 失败:"
         echo "$install_out"
+        echo "      已保留旧应用和数据，请检查签名、版本号或设备空间后重试。"
         continue
     fi
     echo "      [成功] APK 安装完成，正在启动 $MAIN_ACTIVITY ..."
@@ -263,3 +260,4 @@ done
 
 echo ""
 echo "全部任务执行完毕！"
+exit "$INSTALL_FAILED"

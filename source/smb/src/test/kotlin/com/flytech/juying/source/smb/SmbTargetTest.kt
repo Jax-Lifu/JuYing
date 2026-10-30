@@ -71,6 +71,25 @@ class SmbTargetTest {
     }
 
     @Test
+    fun `play URI preserves encoded username characters without inline credentials`() {
+        for (user in listOf("user+tag", "user%41", "user%", "user:name", "用户 @ NAS")) {
+            val target = SmbTarget("nas", "movies", "", user, "secret")
+            val decoded = SmbTarget.fromPlayUri(Uri.parse(target.toPlayUri("movie.mkv")))
+
+            assertEquals(user, decoded.user)
+            assertEquals("", decoded.password)
+        }
+    }
+
+    @Test
+    fun `inline credentials split before decoding and preserve literal plus`() {
+        val decoded = SmbTarget.fromPlayUri(Uri.parse("smb://user%3Aname+tag:p%3Ass+%2541%25@nas/movies/file.mkv"))
+
+        assertEquals("user:name+tag", decoded.user)
+        assertEquals("p:ss+%41%", decoded.password)
+    }
+
+    @Test
     fun `configured port survives playback URI and defaults to 445`() {
         for (authority in listOf("nas", "nas:445", "nas:1445", "[::1]:1445")) {
             val target = SmbTarget.fromConfig(SourceConfig(

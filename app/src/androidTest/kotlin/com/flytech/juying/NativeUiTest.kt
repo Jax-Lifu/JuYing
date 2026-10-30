@@ -468,12 +468,18 @@ class NativeUiTest {
             scenario.onActivity {
                 it.findViewById<View>(com.flytech.juying.feature.player.R.id.episodes).performClick()
             }
-            kotlinx.coroutines.withTimeout(8_000) {
-                while (instrumentation.uiAutomation.rootInActiveWindow
-                        ?.findAccessibilityNodeInfosByText("越过风口")?.isNotEmpty() != true) delay(100)
+            instrumentation.withDialogWindows {
+                kotlinx.coroutines.withTimeout(8_000) {
+                    while (true) {
+                        val choice = instrumentation.findDialogListChoice("第3集 · 越过风口")
+                        if (choice != null) {
+                            instrumentation.clickDialogListChoice(choice)
+                            break
+                        }
+                        delay(100)
+                    }
+                }
             }
-            assertTrue(instrumentation.uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText("越过风口").first()
-                .performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
             kotlinx.coroutines.withTimeout(15_000) {
                 while (model.currentRequest?.ref == request.ref || !model.ui.value.playback.isPlaying) delay(100)
             }

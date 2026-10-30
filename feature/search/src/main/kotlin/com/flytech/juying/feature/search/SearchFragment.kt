@@ -13,6 +13,7 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.flytech.juying.core.model.SearchOutcome
 import com.flytech.juying.core.ui.FocusTarget
 import com.flytech.juying.core.ui.Navigator
@@ -36,6 +37,13 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
             layoutManager = GridLayoutManager(context, resources.getInteger(DesignR.integer.jy_vod_columns))
             adapter = posters
             itemAnimator = null
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    val grid = recyclerView.layoutManager as GridLayoutManager
+                    // 只随用户向下滚动追加，避免布局刷新触发连续翻页。
+                    if (dy > 0 && grid.findLastVisibleItemPosition() >= grid.itemCount - grid.spanCount * 2) vm.more()
+                }
+            })
         }
 
         binding.query.setText(vm.ui.value.keyword)
@@ -61,7 +69,7 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
                         if (binding.suggestScroll.isVisible && binding.suggestContainer.childCount > 0) {
                             binding.suggestContainer.getChildAt(0).requestFocus()
                             true
-                        } else if (binding.emptyContainer.isVisible && binding.retry.isVisible) {
+                        } else if (binding.retry.isVisible) {
                             binding.retry.requestFocus()
                             true
                         } else {
@@ -91,6 +99,7 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
         }
 
         binding.retry.setOnClickListener { vm.retry() }
+        binding.more.setOnClickListener { vm.more() }
 
         launchOnStarted {
             vm.ui.collect { state ->
@@ -99,13 +108,30 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
                 val isSearching = state.loading
 
                 binding.progress.isVisible = isSearching
-                binding.status.isVisible = hasKeyword && (isSearching || hasPosters)
+                binding.status.isVisible = hasKeyword
                 binding.status.text = if (!hasKeyword) ""
-                else getString(R.string.search_progress, state.targets.values.count { it != null }, state.targets.size, state.posters.size)
+                else {
+                    val failures = state.targets.mapNotNull { (target, outcome) ->
+                        val label = when (outcome) {
+                            SearchOutcome.FAILED -> R.string.search_failed_label
+                            SearchOutcome.TIMED_OUT -> R.string.search_timeout_label
+                            else -> return@mapNotNull null
+                        }
+                        "${target.label} (${getString(label)})"
+                    }
+                    listOfNotNull(
+                        getString(R.string.search_progress, state.targets.values.count { it != null }, state.targets.size, state.posters.size),
+                        failures.takeIf { it.isNotEmpty() }?.let { getString(R.string.search_failures, it.joinToString("、")) },
+                    ).joinToString("\n")
+                }
+                binding.retry.isVisible = state.failed && !isSearching
+                binding.more.isVisible = hasPosters && state.hasMore && !state.failed
+                binding.more.isEnabled = !isSearching
+                binding.retry.nextFocusUpId = if (hasPosters) binding.posters.id else binding.query.id
+                binding.more.nextFocusUpId = binding.retry.nextFocusUpId
 
                 renderSuggestions(state.suggestions)
 
-                // 优化未找到情况下的重试逻辑：正常有海报时默认不展示重试；仅在零结果且存在失败时展示友好重试
                 if (hasPosters) {
                     binding.posters.isVisible = true
                     binding.emptyContainer.isVisible = false
@@ -116,11 +142,9 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
                     if (someFailed) {
                         binding.emptyTitle.text = getString(R.string.search_empty)
                         binding.emptySubtext.text = getString(R.string.search_empty_failed)
-                        binding.retry.isVisible = true
                     } else {
                         binding.emptyTitle.text = getString(R.string.search_empty)
                         binding.emptySubtext.text = getString(R.string.search_empty_hint)
-                        binding.retry.isVisible = false
                     }
                 } else {
                     binding.posters.isVisible = true
@@ -197,7 +221,7 @@ class SearchFragment : ViewBindingFragment<FragmentSearchBinding>(FragmentSearch
     override fun requestPrimaryFocus(): Boolean {
         return if (binding.query.text.isNullOrBlank()) {
             binding.query.requestFocus()
-        } else if (binding.emptyContainer.isVisible && binding.retry.isVisible) {
+        } else if (binding.retry.isVisible) {
             binding.retry.requestFocus()
         } else {
             val first = binding.posters.findViewHolderForAdapterPosition(0)?.itemView

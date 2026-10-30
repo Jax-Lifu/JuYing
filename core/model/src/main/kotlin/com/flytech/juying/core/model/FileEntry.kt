@@ -44,25 +44,28 @@ data class FileEntry(
  * 注意：不要把目录级 folder/poster/fanart 赋给每一个子集视频，否则同一个目录下几十集视频全部显示同一张巨幅背景图，极其难看重复。
  */
 object SidecarCovers {
+    private val markers = listOf("-thumb", ".thumb", "-poster")
 
-    fun findCover(
-        video: FileEntry,
-        siblings: List<FileEntry>,
-    ): String? {
-        if (!video.isVideo) return null
-        val baseName = video.name.substringBeforeLast('.', video.name).lowercase()
-
-        // 1. 同名或前缀专属图片
-        val direct = siblings.firstOrNull { file ->
-            if (!file.isImage) return@firstOrNull false
-            val subBase = file.name.substringBeforeLast('.', "").lowercase()
-            subBase == baseName || subBase.startsWith("$baseName-thumb") ||
-                subBase.startsWith("$baseName.thumb") || subBase.startsWith("$baseName-poster")
+    /** 每个目录只索引一次图片；仍以目录中第一个匹配项为准。 */
+    fun forDirectory(siblings: List<FileEntry>): Map<String, String?> {
+        val images = mutableMapOf<String, FileEntry>()
+        siblings.forEach { file ->
+            if (file.isImage) {
+                val base = file.name.substringBeforeLast('.', "").lowercase()
+                images.putIfAbsent(base, file)
+                markers.forEach { marker ->
+                    var offset = base.indexOf(marker)
+                    while (offset >= 0) {
+                        images.putIfAbsent(base.substring(0, offset), file)
+                        offset = base.indexOf(marker, offset + marker.length)
+                    }
+                }
+            }
         }
-        if (direct?.uri != null) return direct.uri
-
-        // 2. 回传视频自身 URI 触发帧抽取，保证每集拥有真实独立的画面缩略图
-        return video.uri
+        return siblings.asSequence().filter { it.isVideo }.associate { video ->
+            val base = video.name.substringBeforeLast('.', video.name).lowercase()
+            video.path to (images[base]?.uri ?: video.uri)
+        }
     }
 }
 

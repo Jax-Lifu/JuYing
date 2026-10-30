@@ -12,7 +12,7 @@ setlocal enabledelayedexpansion
 ::   scripts\run.bat --release              编译 Release，单设备直装 / 多设备交互选择
 ::   scripts\run.bat --release --all        编译 Release，安装并打开所有在线设备
 ::   scripts\run.bat --device qytech6666    指定设备序列号安装
-::   scripts\run.bat --skip-build --all     跳过编译，直接安装最新 APK 到所有设备
+::   scripts\run.bat --skip-build --all     跳过编译，直接安装最新通用双架构 APK 到所有设备
 :: ============================================================================
 
 for %%I in ("%~dp0..") do set "PROJECT_ROOT=%%~fI\"
@@ -79,18 +79,18 @@ if "%SKIP_BUILD%"=="0" (
     )
 ) else (
     echo.
-    echo [1/3] 已跳过编译 ^(--skip-build^)，直接查找最新 APK...
+    echo [1/3] 已跳过编译 ^(--skip-build^)，直接查找最新通用双架构 APK...
 )
 
 set "APK_DIR=%PROJECT_ROOT%app\build\outputs\apk\%BUILD_TYPE%"
 set "APK_FILE="
 if exist "%APK_DIR%" (
-    for /f "delims=" %%F in ('dir /b /a-d /o-d "%APK_DIR%\*.apk" 2^>nul') do (
+    for /f "delims=" %%F in ('dir /b /a-d /o-d "%APK_DIR%\JuYing_%BUILD_TYPE%_*_universal.apk" 2^>nul') do (
         if "!APK_FILE!"=="" set "APK_FILE=%APK_DIR%\%%F" & set "APK_NAME=%%F"
     )
 )
 if "!APK_FILE!"=="" (
-    echo [错误] 未在 %APK_DIR% 下找到 APK 文件。
+    echo [错误] 未在 %APK_DIR% 下找到通用双架构 APK ^(*_universal.apk^)，请先不带 --skip-build 运行以编译通用包。
     exit /b 1
 )
 echo       产物文件: !APK_NAME!
@@ -196,6 +196,7 @@ if "!SELECTED_INDICES!"=="" (
 
 :: 5. 安装并启动
 :install_loop
+set "INSTALL_FAILED=0"
 echo.
 echo [3/3] 开始安装并打开应用 ^(!APK_NAME!^)...
 for %%I in (!SELECTED_INDICES!) do (
@@ -206,17 +207,10 @@ for %%I in (!SELECTED_INDICES!) do (
     "%ADB_EXE%" -s !CUR_SERIAL! install -r "%APK_FILE%" <nul > "%TEMP%\juying_install.log" 2>&1
     findstr /i "Success" "%TEMP%\juying_install.log" >nul
     if errorlevel 1 (
-        findstr /i "INSTALL_FAILED_VERSION_DOWNGRADE INSTALL_FAILED_UPDATE_INCOMPATIBLE" "%TEMP%\juying_install.log" >nul
-        if not errorlevel 1 (
-            echo       检测到旧版签名或版本号冲突，正在卸载旧版后重装...
-            "%ADB_EXE%" -s !CUR_SERIAL! uninstall %APP_PACKAGE% <nul >nul 2>&1
-            "%ADB_EXE%" -s !CUR_SERIAL! install -r "%APK_FILE%" <nul > "%TEMP%\juying_install.log" 2>&1
-        )
-    )
-    findstr /i "Success" "%TEMP%\juying_install.log" >nul
-    if errorlevel 1 (
+        set "INSTALL_FAILED=1"
         echo       [失败] 安装到 !CUR_SERIAL! 失败:
         type "%TEMP%\juying_install.log"
+        echo       已保留旧应用和数据，请检查签名、版本号或设备空间后重试。
     ) else (
         echo       [成功] APK 安装完成，正在启动 %MAIN_ACTIVITY% ...
         "%ADB_EXE%" -s !CUR_SERIAL! shell am force-stop %APP_PACKAGE% <nul >nul 2>&1
@@ -226,5 +220,4 @@ for %%I in (!SELECTED_INDICES!) do (
 
 echo.
 echo 全部任务执行完毕！
-endlocal
-exit /b 0
+endlocal & exit /b %INSTALL_FAILED%

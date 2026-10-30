@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.flytech.juying.core.common.Dispatcher
+import com.flytech.juying.core.common.JuyingDispatchers
 import com.flytech.juying.core.data.SourceBrowseMemory
 import com.flytech.juying.core.model.PlayKind
 import com.flytech.juying.core.model.PlayRequest
@@ -29,6 +31,10 @@ import com.flytech.juying.feature.browse.databinding.FragmentBrowseBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import com.flytech.juying.core.designsystem.R as D
 
 /** 文件与存储目录树浏览 Fragment。 */
@@ -37,6 +43,7 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
     private val vm: BrowseViewModel by viewModels()
     @Inject lateinit var navigator: Navigator
     @Inject lateinit var memory: SourceBrowseMemory
+    @Inject @Dispatcher(JuyingDispatchers.Default) lateinit var defaultDispatcher: CoroutineDispatcher
     private val storageChanges = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { vm.retry() }
     }
@@ -65,10 +72,14 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val context = requireContext()
         parentFragmentManager.setFragmentResultListener(Navigator.STORAGE_ACCESS_RESULT, viewLifecycleOwner) { _, _ ->
             if (vm.ui.value.canRequestStorageAccess) vm.retry()
         }
         val manager = LinearLayoutManager(context)
+        var scrollLocation: Pair<String, String>? = null
+        var pendingScroll: Int? = null
+        var renderVersion = 0
         val rows = MediaRowAdapter({ row ->
             if (vm.ui.value.showRoots) vm.selectSource(row.id)
             else vm.ui.value.files.firstOrNull { it.path == row.id }?.let { entry ->
@@ -98,7 +109,16 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
         binding.addNas.setOnClickListener { navigator.openNetworkStorage(this) }
         val back = object : OnBackPressedCallback(false) { override fun handleOnBackPressed() = vm.up() }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
-        launchOnStarted { vm.ui.collect { state ->
+        launchOnStarted { vm.ui.collectLatest { state ->
+            val version = ++renderVersion
+            val location = state.source?.let { it.id to state.path }
+            if (location != scrollLocation) {
+                scrollLocation = location
+                pendingScroll = state.source?.let { memory.get(it.id, "scroll.${state.path}").toIntOrNull() ?: 0 }
+            } else if (state.loading && pendingScroll == null && rows.itemCount > 0) {
+                // A refresh may clear the adapter; preserve where the user is now, not an older saved position.
+                pendingScroll = manager.findFirstVisibleItemPosition().takeIf { it >= 0 }
+            }
             binding.storageToolbar.isVisible = state.showRoots
             navigation.root.isVisible = !state.showRoots
             navigation.parent.isEnabled = state.canGoUp
@@ -120,24 +140,33 @@ class BrowseFragment : ViewBindingFragment<FragmentBrowseBinding>(FragmentBrowse
                 state.failed -> R.string.browse_unavailable; state.recovered -> D.string.ui_directory_recovered;
                 state.source == null -> R.string.browse_no_storage; else -> D.string.ui_empty })
             val fileList = binding.files
-            rows.submitList(if (state.showRoots) state.sources.map {
-                val icon = when (it.type) {
-                    com.flytech.juying.core.model.SourceType.LOCAL -> D.drawable.ic_storage
-                    com.flytech.juying.core.model.SourceType.SMB -> D.drawable.ic_server
-                    else -> D.drawable.ic_files
+            val items = withContext(defaultDispatcher) {
+                if (state.showRoots) state.sources.map {
+                    val icon = when (it.type) {
+                        com.flytech.juying.core.model.SourceType.LOCAL -> D.drawable.ic_storage
+                        com.flytech.juying.core.model.SourceType.SMB -> D.drawable.ic_server
+                        else -> D.drawable.ic_files
+                    }
+                    MediaRow(it.id, it.name, context.getString(R.string.browse_open_storage), icon)
+                } else {
+                    val covers = SidecarCovers.forDirectory(state.files)
+                    state.files.map {
+                        ensureActive()
+                        MediaRow(it.path, it.name,
+                            if (it.isDirectory) context.getString(R.string.browse_open_folder) else if (it.isVideo) context.getString(R.string.browse_play_file,
+                                if (it.size > 0) Formatter.formatFileSize(context, it.size) else context.getString(D.string.ui_file_unknown))
+                            else context.getString(R.string.browse_file_info),
+                            if (it.isDirectory) D.drawable.ic_files else if (it.isVideo) D.drawable.ic_film else R.drawable.ic_document,
+                            cover = covers[it.path])
+                    }
                 }
-                MediaRow(it.id, it.name, getString(R.string.browse_open_storage), icon)
             }
-            else state.files.map { MediaRow(it.path, it.name,
-                if (it.isDirectory) getString(R.string.browse_open_folder) else if (it.isVideo) getString(R.string.browse_play_file,
-                    if (it.size > 0) Formatter.formatFileSize(requireContext(), it.size) else getString(D.string.ui_file_unknown))
-                else getString(R.string.browse_file_info),
-                if (it.isDirectory) D.drawable.ic_files else if (it.isVideo) D.drawable.ic_film else R.drawable.ic_document,
-                cover = if (it.isVideo) SidecarCovers.findCover(it, state.files) else null) }) {
-                if (!fileList.isAttachedToWindow || vm.ui.value.source != state.source || vm.ui.value.path != state.path || vm.ui.value.showRoots != state.showRoots) return@submitList
-                if (!state.loading) state.source?.let { source ->
-                    val index = memory.get(source.id, "scroll.${state.path}").toIntOrNull() ?: 0
+            rows.submitList(items) {
+                if (version != renderVersion || !fileList.isAttachedToWindow || vm.ui.value.source != state.source ||
+                    vm.ui.value.path != state.path || vm.ui.value.files !== state.files || vm.ui.value.showRoots != state.showRoots) return@submitList
+                if (!state.loading && !state.failed) pendingScroll?.let { index ->
                     manager.scrollToPosition(index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0)))
+                    pendingScroll = null
                 }
                 if (isResumed && !binding.root.hasFocus()) {
                     requestPrimaryFocus()

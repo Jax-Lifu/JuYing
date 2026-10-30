@@ -9,6 +9,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -71,7 +73,61 @@ class DefaultVodRepositoryTest {
         assertEquals(SearchOutcome.TIMED_OUT, result.outcome)
     }
 
-    private class TestVod(
+    @Test fun emptySearchPageKeepsProviderContinuationFlag() = runTest {
+        val provider = object : TestVod(listOf("site"), { _, _, _ -> emptyList() }) {
+            override suspend fun searchPage(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): VodPage {
+                assertEquals("site", subSourceId)
+                assertEquals(2, page)
+                return VodPage(emptyList(), true)
+            }
+        }
+        val result = repository(provider).searchUpdates("标题", 2).toList().filterIsInstance<SearchUpdate.Finished>().single()
+        assertEquals(SearchOutcome.SUCCESS, result.outcome)
+        assertTrue(result.items.isEmpty())
+        assertEquals(true, result.hasMore)
+    }
+
+    @Test fun scriptExecutionBudgetStartsAfterPlaybackAndEarlierSearchReleaseTheSlot() = runTest {
+        val gate = Mutex()
+        val playback = launch { gate.withLock { delay(20_000) } }
+        runCurrent()
+        val provider = object : TestVod(listOf("first", "second"), { site, _, _ ->
+            delay(18_000)
+            listOf(VodItem(site, config.id, site))
+        }) {
+            override suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): VodPage? =
+                gate.withLock { super.searchPageWithTimeout(config, keyword, page, subSourceId, timeoutMillis) }
+        }
+        val updates = repository(provider).searchUpdates("标题").toList().filterIsInstance<SearchUpdate.Finished>()
+        playback.join()
+        assertEquals(listOf(SearchOutcome.SUCCESS, SearchOutcome.SUCCESS), updates.map { it.outcome })
+        assertEquals(listOf("first", "second"), updates.flatMap { it.items }.map { it.id })
+        assertEquals(56_000L, testScheduler.currentTime)
+    }
+
+    @Test fun cancellingSearchWhileWaitingForScriptSlotDoesNotRunItOrCancelPlayback() = runTest {
+        val gate = Mutex()
+        var calls = 0
+        val playback = launch { gate.withLock { awaitCancellation() } }
+        runCurrent()
+        val provider = object : TestVod(listOf("waiting"), { _, _, _ ->
+            calls++
+            emptyList()
+        }) {
+            override suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): VodPage? =
+                gate.withLock { super.searchPageWithTimeout(config, keyword, page, subSourceId, timeoutMillis) }
+        }
+        val search = launch { repository(provider).searchUpdates("标题").toList() }
+        runCurrent()
+        advanceTimeBy(35_000); runCurrent()
+        assertTrue(search.isActive)
+        search.cancelAndJoin()
+        assertEquals(0, calls)
+        assertTrue(playback.isActive)
+        playback.cancelAndJoin()
+    }
+
+    private open class TestVod(
         private val sites: List<String>,
         private val result: suspend (String, String, Int) -> List<VodItem>,
     ) : VodSource {

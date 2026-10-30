@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flytech.juying.core.data.VodRepository
 import com.flytech.juying.core.model.HistoryEntry
+import com.flytech.juying.core.model.SourceConfig
 import com.flytech.juying.core.model.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -19,21 +20,26 @@ import kotlinx.coroutines.launch
 class HomeViewModel @Inject constructor(private val vod: VodRepository) : ViewModel() {
     private val items = MutableStateFlow<List<VodItem>>(emptyList())
     val recommendations = items.asStateFlow()
-    private var sourceId: String? = null
+    private var source: SourceConfig? = null
+    private var loaded = false
     private var request: Job? = null
 
-    fun load(source: String?) {
-        if (sourceId == source) return
-        sourceId = source
+    fun load(config: SourceConfig?) {
+        if (source == config && (loaded || request?.isActive == true)) return
+        source = config
+        loaded = false
         request?.cancel()
         items.value = emptyList()
-        if (source == null) return
+        if (config == null) return
         request = viewModelScope.launch {
             try {
-                val category = vod.categories(source).firstOrNull() ?: return@launch
-                val result = vod.list(source, category.id, RECOMMENDATION_PAGE)
+                val category = vod.categories(config.id).firstOrNull()
+                val result = category?.let { vod.list(config.id, it.id, RECOMMENDATION_PAGE) }.orEmpty()
                 ensureActive()
-                if (sourceId == source) items.value = result.take(MAX_RECOMMENDATIONS)
+                if (source == config) {
+                    items.value = result.take(MAX_RECOMMENDATIONS)
+                    loaded = true
+                }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 // 推荐不可用时保留浏览入口，不影响继续观看或触发额外全源请求。

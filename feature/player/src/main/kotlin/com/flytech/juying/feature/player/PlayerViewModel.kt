@@ -158,6 +158,8 @@ class PlayerViewModel @Inject constructor(
                 // 新请求解析失败或取消时，当前节目的状态与备用线路仍须继续工作。
                 forwardJob = viewModelScope.launch {
                     e.state.collect { s ->
+                        // Lifecycle pauses must not replace the intent to resume on returning.
+                        if (foreground) playWhenForeground = s.playWhenReady
                         if (s.error != null && remainingBackupLines.isNotEmpty()) {
                             val nextLine = remainingBackupLines.removeFirst()
                             Timber.w("Primary line failed (%s), switching to backup line: %s", s.error, nextLine.label)
@@ -284,7 +286,8 @@ class PlayerViewModel @Inject constructor(
         if (pending != null) return
         val req = request ?: return
         val episode = _ui.value.episodes.getOrNull(index) ?: return
-        start(req.copy(ref = episode.ref, title = episode.name, extra = req.extra + ("episodeTitle" to episode.name)))
+        val extra = if (req.kind == PlayKind.FILE) req.extra - "uri" else req.extra
+        start(req.copy(ref = episode.ref, title = episode.name, extra = extra + ("episodeTitle" to episode.name)))
     }
 
     fun changeEpisode(delta: Int) {
@@ -309,7 +312,12 @@ class PlayerViewModel @Inject constructor(
 
     fun togglePlay() {
         val e = engine ?: return
-        playWhenForeground = !playWhenForeground
+        if (e.state.value.ended && !_ui.value.isLive) {
+            e.seekTo(0)
+            playWhenForeground = true
+        } else {
+            playWhenForeground = !playWhenForeground
+        }
         if (playWhenForeground && foreground) e.play() else pause()
     }
 

@@ -3,6 +3,8 @@ package com.flytech.juying.source.tvbox.config
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 
 class TvboxConfigParserTest {
@@ -54,5 +56,38 @@ class TvboxConfigParserTest {
         assertEquals("https://example.test/redirect/spider.js", site.api)
         org.junit.Assert.assertTrue(site.ext.toString().contains("https://example.test/rule.js"))
         org.junit.Assert.assertTrue(document.toString().contains("console.log('./untouched')"))
+    }
+
+    @Test fun rejectsDeepDecodedInputBeforeJsonParsingOrRelativeResolution() {
+        val nested = """{"sites":[],"unknown":${"[".repeat(4_000)}0${"]".repeat(4_000)}}"""
+        val encoded = "abcdefgh**" + java.util.Base64.getEncoder().encodeToString(nested.toByteArray())
+        for (input in listOf(nested, encoded)) {
+            for (parse in listOf<(String) -> Any?>(
+                TvboxConfigParser::parse,
+                TvboxConfigParser::parseRepoList,
+                { TvboxConfigParser.document(it, "https://example.test/config.json") },
+            )) {
+                val error = assertThrows(IllegalArgumentException::class.java) { parse(input) }
+                assertEquals("TVBox 配置嵌套超过 64 层", error.message)
+            }
+        }
+    }
+
+    @Test fun bracketsAndEscapedQuotesInStringsOrCommentsDoNotCountAsNesting() {
+        val script = "[".repeat(4_000) + "\\\"/* //" + "}".repeat(4_000) + "\\"
+        val input = """{/* ${"[".repeat(4_000)} */ "sites":[],
+            "script":${JsonPrimitive(script)}, // ${"{".repeat(4_000)}
+            "wallpaper":"./image.png"}""".trimIndent()
+        val document = TvboxConfigParser.document(input, "https://example.test/config.json")
+        assertEquals(JsonPrimitive(script), document["script"])
+        assertEquals("https://example.test/image.png", TvboxConfigParser.parse(document.toString()).wallpaper)
+    }
+
+    @Test fun nestingLimitAcceptsItsBoundaryAndRejectsTheNextLevel() {
+        fun input(depth: Int) = """{"unknown":${"[".repeat(depth - 1)}0${"]".repeat(depth - 1)}}"""
+        assertNotNull(TvboxConfigParser.document(input(64), "https://example.test/config.json"))
+        assertThrows(IllegalArgumentException::class.java) {
+            TvboxConfigParser.document(input(65), "https://example.test/config.json")
+        }
     }
 }

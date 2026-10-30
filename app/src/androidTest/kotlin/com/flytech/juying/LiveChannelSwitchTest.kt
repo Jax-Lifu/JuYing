@@ -76,7 +76,7 @@ class LiveChannelSwitchTest {
                 ActivityScenario.launch<PlayerActivity>(PlayerActivity.intent(instrumentation.targetContext, request)).use { scenario ->
                     scenario.onActivity {
                         model = ViewModelProvider(it)[PlayerViewModel::class.java]
-                        manager = field(model, "playback")
+                        manager = field(checkNotNull(model), "playback")
                     }
                     val vm = model!!
                     waitForChannel(scenario, vm, first)
@@ -87,6 +87,7 @@ class LiveChannelSwitchTest {
                     clickBurst(scenario, listOf(1, 1, -1, 1, 1))
                     waitForChannel(scenario, vm, channels[3], engine, manager)
                     assertRenderedVideo(scenario)
+
                     clickBurst(scenario, listOf(-1, -1, 1, -1, 1, -1, -1))
                     waitForChannel(scenario, vm, channels[0], engine, manager)
 
@@ -99,6 +100,28 @@ class LiveChannelSwitchTest {
                         instrumentation.sendKeyDownUpSync(if (direction > 0) KeyEvent.KEYCODE_CHANNEL_DOWN else KeyEvent.KEYCODE_CHANNEL_UP)
                     }
                     waitForChannel(scenario, vm, channels[3], engine, manager)
+                    assertRenderedVideo(scenario)
+
+                    scenario.recreate()
+                    scenario.onActivity { assertSame(vm, ViewModelProvider(it)[PlayerViewModel::class.java]) }
+                    waitForChannel(scenario, vm, channels[3], engine, manager)
+                    assertRenderedVideo(scenario)
+
+                    val nextRequest = request.copy(ref = channels[1].id, title = channels[1].name)
+                    scenario.onActivity { it.startActivity(PlayerActivity.intent(it, nextRequest)) }
+                    waitForChannel(scenario, vm, channels[1], engine, manager)
+                    scenario.onActivity { assertEquals(nextRequest.ref, it.intent.getStringExtra("ref")) }
+
+                    clickBurst(scenario, listOf(1))
+                    waitForChannel(scenario, vm, channels[2], engine, manager)
+                    // Drop retained state to exercise saved-request restoration with a fresh ViewModel.
+                    scenario.onActivity { it.viewModelStore.clear() }
+                    scenario.recreate()
+                    scenario.onActivity {
+                        model = ViewModelProvider(it)[PlayerViewModel::class.java]
+                        assertNotSame(vm, model)
+                    }
+                    waitForChannel(scenario, model!!, channels[2], manager = manager)
                     assertRenderedVideo(scenario)
                 }
                 assertNull("Closing PlayerActivity releases its decoder", manager!!.current())

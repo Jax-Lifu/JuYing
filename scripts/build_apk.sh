@@ -5,9 +5,11 @@
 # 自动将最终编译产物复制到 dist/<版本或日期子目录>/ 下
 #
 # 用法:
-#   ./scripts/build_apk.sh                    默认编译 Debug + Release 并归档至 dist/v{版本}_{日期}/
+#   ./scripts/build_apk.sh                    默认编译 Debug + Release 的 ARM64、ARMv7、通用包
 #   ./scripts/build_apk.sh --debug            仅编译 Debug APK
 #   ./scripts/build_apk.sh --release          仅编译 Release APK（含 R8 mapping.txt 归档）
+#   ./scripts/build_apk.sh --debug --abi arm64-v8a  仅编译 ARM64 包
+#   ./scripts/build_apk.sh --debug --abi universal  仅编译双架构通用包
 #   ./scripts/build_apk.sh --by-version       按版本号分子目录存放: dist/v0.1.0/
 #   ./scripts/build_apk.sh --by-date          按日期分子目录存放:   dist/20261024/
 #   ./scripts/build_apk.sh --clean            编译前执行 clean
@@ -38,7 +40,6 @@ ensure_python311() {
         fi
     fi
 }
-ensure_python311
 
 # 智能检测并适配当前平台的 Android SDK 路径
 ensure_android_sdk() {
@@ -64,11 +65,11 @@ ensure_android_sdk() {
         fi
     fi
 }
-ensure_android_sdk
 
 BUILD_TARGET="all"
 DIST_MODE="version_date"
 DO_CLEAN=0
+ABI="all"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -100,78 +101,54 @@ while [[ $# -gt 0 ]]; do
             DO_CLEAN=1
             shift
             ;;
+        --abi)
+            ABI="${2:-}"
+            case "$ABI" in
+                all|universal|arm64-v8a|armeabi-v7a) ;;
+                *) echo "Invalid ABI: $ABI. Use all, universal, arm64-v8a or armeabi-v7a." >&2; exit 1 ;;
+            esac
+            shift 2
+            ;;
         *)
             shift
             ;;
     esac
 done
 
+ensure_python311
+ensure_android_sdk
+
 GRADLE_TASKS=()
-VARIANTS=()
-if [[ "$DO_CLEAN" -eq 1 ]]; then
-    GRADLE_TASKS+=("clean")
-fi
 if [[ "$BUILD_TARGET" == "debug" ]]; then
     GRADLE_TASKS+=(":app:assembleDebug")
-    VARIANTS=("debug")
 elif [[ "$BUILD_TARGET" == "release" ]]; then
     GRADLE_TASKS+=(":app:assembleRelease")
-    VARIANTS=("release")
 else
     GRADLE_TASKS+=(":app:assembleDebug" ":app:assembleRelease")
-    VARIANTS=("debug" "release")
 fi
-
-echo ""
-echo "============================================================================"
-echo "[1/2] 正在编译 APK (目标: $BUILD_TARGET, 归档模式: $DIST_MODE)"
-echo "      执行任务: ${GRADLE_TASKS[*]} -PdistMode=$DIST_MODE"
-echo "============================================================================"
 
 if [[ -f "$PROJECT_ROOT/gradlew" && "$(uname -s)" != MINGW* && "$(uname -s)" != CYGWIN* && "$(uname -s)" != MSYS* ]]; then
     chmod +x "$PROJECT_ROOT/gradlew"
-    "$PROJECT_ROOT/gradlew" "${GRADLE_TASKS[@]}" "-PdistMode=$DIST_MODE"
+    GRADLE="$PROJECT_ROOT/gradlew"
 else
-    "$PROJECT_ROOT/gradlew.bat" "${GRADLE_TASKS[@]}" "-PdistMode=$DIST_MODE"
+    GRADLE="$PROJECT_ROOT/gradlew.bat"
 fi
 
-APP_VER="0.1.0"
-BUILD_DATE="$(date +%Y%m%d)"
-for v in "${VARIANTS[@]}"; do
-    apk_file="$(ls -t "$PROJECT_ROOT/app/build/outputs/apk/$v"/*.apk 2>/dev/null | head -n1 || true)"
-    if [[ -n "$apk_file" ]]; then
-        base_name="$(basename "$apk_file" .apk)"
-        IFS='_' read -r _ _ ver dt <<< "$base_name"
-        [[ -n "${ver:-}" ]] && APP_VER="$ver"
-        [[ -n "${dt:-}" ]] && BUILD_DATE="$dt"
-    fi
-done
-
-if [[ "$DIST_MODE" == "version" ]]; then
-    SUB_DIR="v${APP_VER}"
-elif [[ "$DIST_MODE" == "date" ]]; then
-    SUB_DIR="${BUILD_DATE}"
+if [[ "$ABI" == "all" ]]; then
+    BUILD_ABIS=("arm64-v8a" "armeabi-v7a" "universal")
 else
-    SUB_DIR="v${APP_VER}_${BUILD_DATE}"
+    BUILD_ABIS=("$ABI")
 fi
 
-TARGET_DIST="$PROJECT_ROOT/dist/$SUB_DIR"
-mkdir -p "$TARGET_DIST"
-
-for v in "${VARIANTS[@]}"; do
-    apk_file="$(ls -t "$PROJECT_ROOT/app/build/outputs/apk/$v"/*.apk 2>/dev/null | head -n1 || true)"
-    if [[ -n "$apk_file" && -f "$apk_file" ]]; then
-        cp -f "$apk_file" "$TARGET_DIST/"
-        if [[ "$v" == "release" && -f "$PROJECT_ROOT/app/build/outputs/mapping/release/mapping.txt" ]]; then
-            base_name="$(basename "$apk_file" .apk)"
-            cp -f "$PROJECT_ROOT/app/build/outputs/mapping/release/mapping.txt" "$TARGET_DIST/${base_name}_mapping.txt"
-        fi
-    fi
+for build_abi in "${BUILD_ABIS[@]}"; do
+    args=()
+    if [[ "$DO_CLEAN" -eq 1 ]]; then args+=("clean"); fi
+    args+=("${GRADLE_TASKS[@]}" "-PdistMode=$DIST_MODE")
+    if [[ "$build_abi" != "universal" ]]; then args+=("-PtargetAbi=$build_abi"); fi
+    echo "[1/2] 正在编译 APK (目标: $BUILD_TARGET, ABI: $build_abi, 归档模式: $DIST_MODE)"
+    "$GRADLE" "${args[@]}"
+    DO_CLEAN=0
 done
 
-echo ""
-echo "============================================================================"
-echo "[2/2] 编译与归档完成！输出目录: $TARGET_DIST"
-echo "============================================================================"
-ls -lh "$TARGET_DIST"
-echo ""
+# Gradle assemble 为每轮 APK 和对应 mapping 精确归档，避免混入旧架构产物。
+echo "[2/2] 编译与归档完成！输出目录: $PROJECT_ROOT/dist/"

@@ -2,6 +2,8 @@ package com.flytech.juying.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flytech.juying.core.common.Dispatcher
+import com.flytech.juying.core.common.JuyingDispatchers
 import com.flytech.juying.core.data.BrowseRepository
 import com.flytech.juying.core.data.SourceBrowseMemory
 import com.flytech.juying.core.data.SourceRepository
@@ -12,12 +14,14 @@ import com.flytech.juying.core.model.StorageAccessRequiredException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.FileNotFoundException
 
@@ -34,7 +38,8 @@ data class BrowseUiState(val source: SourceConfig? = null, val path: String = ""
 /** 文件与存储浏览页面 ViewModel。 */
 @HiltViewModel
 class BrowseViewModel @Inject constructor(private val sources: SourceRepository,
-    private val browse: BrowseRepository, private val memory: SourceBrowseMemory) : ViewModel() {
+    private val browse: BrowseRepository, private val memory: SourceBrowseMemory,
+    @Dispatcher(JuyingDispatchers.Default) private val defaultDispatcher: CoroutineDispatcher) : ViewModel() {
     private val state = MutableStateFlow(BrowseUiState())
     val ui = state.asStateFlow()
     private var job: Job? = null
@@ -95,7 +100,10 @@ class BrowseViewModel @Inject constructor(private val sources: SourceRepository,
                 memory.put(source.id, "location", memory.get(source.id, "label.$currentPath").ifEmpty { currentPath })
                 memory.put(source.id, "parents", JSONArray(parents).toString())
                 try {
-                    val files = browse.list(source.id, currentPath).sortedWith(compareByDescending<FileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
+                    val entries = browse.list(source.id, currentPath)
+                    val files = withContext(defaultDispatcher) {
+                        entries.sortedWith(compareByDescending<FileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
+                    }
                     ensureActive()
                     state.value = state.value.copy(files = files, loading = false)
                     break

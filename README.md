@@ -7,7 +7,7 @@
 
 - **多媒体源聚合**：
   - **央视 (CCTV)**：官方栏目分类与专辑选集，默认采用官方 H5E / CDRM 高清原生流直出，支持完整进度拖动与多档位清晰度切换，拒绝 WebView 回退。
-  - **TVBox 生态**：兼容 CMS XML/JSON（type 0/1）、Jar（DEX/Init/safeDns）、QuickJS 模块与 CPython 3.11 爬虫，支持 Base64 与 2423 CBC 加密配置及中文域名；脚本独立进程隔离运行。
+  - **TVBox 生态**：兼容 CMS XML/JSON（type 0/1）、Jar（DEX/Init/safeDns）、QuickJS 模块与 CPython 3.11 爬虫，支持 Base64 与 2423 CBC 加密配置及中文域名；脚本独立进程隔离运行。预置「金牌 · 肥猫」「急救 · 肥猫」两个入口，允许编辑、停用或删除，删除后重启不恢复；其他订阅由用户自行配置。
   - **IPTV 直播**：支持网络订阅与本地 M3U/TXT 导入、可用性检查、XMLTV (gzip) 节目单流式解析与故障自动换线。
   - **局域网与本地媒体**：原生集成 Samba (SMB) 与本机/移动存储目录导航，智能关联同目录外挂字幕，播放退出保留浏览位置。
 - **三端形态适配**：
@@ -40,6 +40,32 @@
    ```
 
 > **注意**：Windows 环境下若遇到 JDK Unix domain socket 路径长度限制，可将当前终端的 `TEMP`、`TMP` 设置为短路径后重试。
+
+Release 构建必须配置 `JUYING_KEYSTORE_PATH`、`JUYING_KEYSTORE_PASSWORD`、`JUYING_KEY_ALIAS`、`JUYING_KEY_PASSWORD` 环境变量；缺少时构建失败，不会改用 debug 签名。签名文件保存在仓库外，并持续使用同一密钥。GitHub 发布还需设置 `JUYING_KEYSTORE_BASE64` Secret 及上述三个密码/别名 Secret，工作流会临时还原并清理签名文件。
+
+版本默认是 `0.0.2`，可通过 `-PappVersion=主版本.次版本.补丁版本` 指定；每段为 0–999，`versionCode = 主版本 × 1000000 + 次版本 × 1000 + 补丁版本`，发新版必须提升版本号。标签发布使用标签中的版本（可带 `v` 前缀），保留现有 APK 命名格式。发布前运行单元测试和 Debug 构建；Windows 安装脚本回归使用 `python scripts/tests/test_run.py`。安装冲突会停止并保留旧应用数据，不会自动卸载。
+
+编译脚本默认按架构生成三类 APK；未指定构建类型时编译 Debug 和 Release，Release 仍需上述签名配置：
+
+| 文件后缀 | 包含架构 |
+|---|---|
+| `_universal.apk` | `arm64-v8a` + `armeabi-v7a` |
+| `_arm64-v8a.apk` | ARM64 |
+| `_armeabi-v7a.apk` | ARMv7（32 位） |
+
+```powershell
+.\scripts\build_apk.ps1 -Debug                 # 三类 Debug 包
+.\scripts\build_apk.bat --debug                # 同上
+./scripts/build_apk.sh --debug                 # Linux / macOS / Git Bash
+.\scripts\build_apk.ps1 -Debug -Abi universal  # 仅通用包
+.\scripts\build_apk.bat --debug --abi arm64-v8a
+./scripts/build_apk.sh --debug --abi armeabi-v7a
+.\gradlew.bat :app:assembleDebug -PtargetAbi=arm64-v8a
+```
+
+三个编译脚本均支持 `all`（默认）、`universal`、`arm64-v8a`、`armeabi-v7a`；PowerShell 使用 `-Abi`，Batch/Bash 使用 `--abi`。直接运行 Gradle 时省略 `targetAbi` 只构建通用包。APK 与 Release mapping 以相同架构后缀归档到原有 `dist/` 目录，`--clean` / `-Clean` 只在第一轮执行。
+
+GitHub 发布工作流先运行测试和 Debug 构建，再生成三类签名 Release 包。Actions 产物按 `JuYing-Release-<架构>` 分组，标签 Release 附带全部三类 APK 及各自 mapping。`run.bat`、`run.ps1`、`run.sh` 默认只选择通用包，跳过编译时也不会误选单架构包。编译脚本回归使用 `python scripts/tests/test_build_apk.py` 和 `python scripts/tests/test_build_apk_shells.py`。
 
 ## 架构设计
 
@@ -93,7 +119,7 @@ Data 层    Repository（单向数据流 Flow） → SourceRegistry → 具体 s
 | 状态 | 内容 |
 |---|---|
 | **已实现** | 多模块依赖与 DI 契约；IPTV/M3U/TXT 导入与 XMLTV 解析；央视官方高清点播与直播原生播放；TVBox CMS/Jar/JS/Python 分类、详情、搜索与解析；Samba 与本地媒体浏览；音轨与外挂字幕匹配；凭据加密安全存储；视口内容预取与连续切台优化 |
-| **能力边界** | 点播仅使用原生播放器，不回退 WebView；央视默认高清，不支持 UDRM/Widevine/HEVC；脚本仅支持已实现的兼容沙箱契约；第三方订阅需用户自备 |
+| **能力边界** | 点播仅使用原生播放器，不回退 WebView；央视默认高清，不支持 UDRM/Widevine/HEVC；脚本仅支持已实现的兼容沙箱契约；预置入口及其他第三方订阅的可用性取决于上游 |
 | **进行中 / 待实现** | 一期进行中：TVBox 多层仓库选择与配置文件导入、设置页缓存清理入口、TV 高规格画质音效实测；二期规划：系统级画中画、NFS/Alist 等；详见 [路线图](docs/ROADMAP.md) |
 
 ## 相关文档

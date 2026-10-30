@@ -35,6 +35,21 @@ class CctvSourceTest {
         return CctvSource(Provider { client }, Dispatchers.Default)
     }
 
+    @Test fun searchKeepsNextDirectoryPageWhenCurrentPageHasNoMatches() = runTest {
+        val source = source { request ->
+            val firstPage = request.url.queryParameter("p") == "1"
+            val rows = if (firstPage) (1..24).joinToString(",") { """{"id":"$it","title":"Other $it"}""" }
+                else """{"id":"match","title":"Target"}"""
+            """{"data":{"list":[$rows]}}"""
+        }
+        val first = source.searchPage(config, "Target", 1, null)
+        assertTrue(first.items.isEmpty())
+        assertEquals(true, first.hasMore)
+        val second = source.searchPage(config, "Target", 2, null)
+        assertEquals(listOf("match"), second.items.map { it.id })
+        assertEquals(false, second.hasMore)
+    }
+
     @Test fun liveKeepsOfficialMasterAndPrefersHighestQualityWithoutOpeningWebPage() = runTest {
         val source = source { request ->
             when (request.url.host) {

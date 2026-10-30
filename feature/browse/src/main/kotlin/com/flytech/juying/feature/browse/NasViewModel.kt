@@ -65,10 +65,9 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
                         config.name.substringAfterLast("·").trim()
                     } else config.name
                     val dev = NetworkStorageDevice(SourceType.SMB, hostname, host, port)
-                    map[dev.host.lowercase()] = config.id
                     map[address(dev.host, dev.port).lowercase()] = config.id
                     if (isNamed(hostname)) {
-                        map[hostname.lowercase()] = config.id
+                        map[address(hostname, port).lowercase()] = config.id
                     }
                     knownDevices = mergeDevice(knownDevices, dev)
                 }
@@ -83,9 +82,8 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
         state.update { current ->
             val connectedKeys = current.connectedDevices.keys
             val retained = current.devices.filter { dev ->
-                dev.host.lowercase() in connectedKeys ||
-                    dev.name.lowercase() in connectedKeys ||
-                    address(dev.host, dev.port).lowercase() in connectedKeys
+                address(dev.host, dev.port).lowercase() in connectedKeys ||
+                    address(dev.name, dev.port).lowercase() in connectedKeys
             }
             current.copy(devices = retained, scanning = true, error = null)
         }
@@ -119,7 +117,7 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
 
     fun backToDevices() {
         cancelConnection()
-        state.value = NasUiState()
+        state.update { NasUiState(devices = it.devices, connectedDevices = it.connectedDevices) }
         scan()
     }
 
@@ -212,15 +210,14 @@ class NasViewModel @Inject constructor(private val sources: SourceRepository) : 
 
     fun connectedSourceIdFor(device: NetworkStorageDevice): String? {
         val map = state.value.connectedDevices
-        return map[device.host.lowercase()]
-            ?: map[address(device.host, device.port).lowercase()]
-            ?: map[device.name.lowercase()]
+        return map[address(device.host, device.port).lowercase()]
+            ?: map[address(device.name, device.port).lowercase()]
     }
 
     private fun mergeDevice(current: List<NetworkStorageDevice>, device: NetworkStorageDevice): List<NetworkStorageDevice> {
         val previous = current.find { existing ->
-            existing.type == device.type && (
-                (existing.host == device.host && existing.port == device.port) ||
+            existing.type == device.type && existing.port == device.port && (
+                existing.host == device.host ||
                 (isNamed(existing.name) && isNamed(device.name) && existing.name.equals(device.name, ignoreCase = true))
             )
         }

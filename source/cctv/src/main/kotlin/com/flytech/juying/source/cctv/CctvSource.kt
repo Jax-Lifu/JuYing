@@ -14,6 +14,7 @@ import com.flytech.juying.core.model.SourceType
 import com.flytech.juying.core.model.VodCategory
 import com.flytech.juying.core.model.VodDetail
 import com.flytech.juying.core.model.VodItem
+import com.flytech.juying.core.model.VodPage
 import com.flytech.juying.source.api.LiveSource
 import com.flytech.juying.source.api.SourceDiscoveryProvider
 import com.flytech.juying.source.api.SourceProvider
@@ -170,17 +171,24 @@ class CctvSource @Inject constructor(
         error("央视专辑超过分页上限")
     }
 
-    override suspend fun search(config: SourceConfig, keyword: String, page: Int): List<VodItem> = coroutineScope {
+    override suspend fun search(config: SourceConfig, keyword: String, page: Int): List<VodItem> =
+        searchPage(config, keyword, page, null).items
+
+    override suspend fun searchPage(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): VodPage = coroutineScope {
+        require(subSourceId == null) { "央视不支持子站点搜索" }
         val query = keyword.trim()
-        if (query.isEmpty()) return@coroutineScope emptyList()
+        if (query.isEmpty()) return@coroutineScope VodPage(emptyList(), false)
         val letter = query.takeIf { it.length == 1 && it[0].isLetter() && it[0].code < ASCII_LIMIT }?.uppercase()
         val semaphore = Semaphore(SEARCH_CONCURRENCY)
         // 延续旧版的目录检索语义；接口没有全文搜索参数，每页查询各分类的同一目录页。
-        CctvCategory.entries.map { category -> async {
-            semaphore.withPermit { loadAlbums(category, page, letter) }
+        val pages = CctvCategory.entries.map { category -> async {
+            val albums = semaphore.withPermit { loadAlbums(category, page, letter) }
+            val items = albums
                 .filter { letter != null || it.title.contains(query, true) || it.actors.contains(query, true) }
                 .map { it.toItem(config.id) }
-        } }.awaitAll().flatten().distinctBy { it.id }
+            VodPage(items, albums.size >= ALBUM_PAGE_SIZE)
+        } }.awaitAll()
+        VodPage(pages.flatMap { it.items }.distinctBy { it.id }, pages.any { it.hasMore == true })
     }
 
     override suspend fun resolve(config: SourceConfig, episodeRef: String): PlayItem {
@@ -207,7 +215,7 @@ class CctvSource @Inject constructor(
     private suspend fun highestHd(master: String, headers: Map<String, String>): String = withContext(defaultDispatcher) {
         client.get().newCall(okhttp3.Request.Builder().url(master).apply {
             headers.forEach { (name, value) -> header(name, value) }
-        }.build()).await().use { result ->
+        }.build()).await { result ->
             check(result.isSuccessful) { "央视高清清单请求失败：HTTP ${result.code}" }
             val body = checkNotNull(result.body) { "央视高清清单为空" }
             require(body.contentLength() <= CctvH5ePlaylist.MAX_PLAYLIST_BYTES &&

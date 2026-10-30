@@ -24,7 +24,7 @@ import javax.inject.Inject
  * 让 ExoPlayer 通过 smb:// 随机读取局域网 NAS 文件。
  * 针对局域网网络特点进行深度优化：
  * 1. 采用 512KB 内存预读缓冲，消除 ExoPlayer 频繁发起的 8KB~32KB 小包同步网络往返。
- * 2. 复用已打开的 SMB 文件句柄，避免媒体嗅探与拖动定位时反复执行 SMB2 CREATE/CLOSE 握手。
+ * 2. 复用 SMB 连接；文件句柄随 DataSource 关闭，避免退出播放后仍占用远端文件。
  */
 @UnstableApi
 class SmbDataSource(private val connections: SmbConnections) : BaseDataSource(/* isNetwork = */ false) {
@@ -50,22 +50,7 @@ class SmbDataSource(private val connections: SmbConnections) : BaseDataSource(/*
         transferInitializing(dataSpec)
         val t = SmbTarget.fromPlayUri(dataSpec.uri)
 
-        // 句柄复用：同一文件目标直接调整偏移与剩余长度，避免重复向 NAS 发起 SMB2 CREATE
-        if (t == target && file != null) {
-            position = dataSpec.position
-            val size = file!!.fileInformation.standardInformation.endOfFile
-            remaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) dataSpec.length else size - position
-            // 检查当前预读缓冲区是否仍覆盖新的 position
-            if (position < prefetchStart || position >= prefetchStart + prefetchLength) {
-                prefetchStart = -1L
-                prefetchLength = 0
-            }
-            opened = true
-            transferStarted(dataSpec)
-            return remaining
-        }
-
-        // 目标变更或首次打开：释放旧文件并打开新文件
+        // 释放旧文件并打开新文件；SMB 连接由 SmbConnections 复用。
         try {
             file?.close()
         } catch (_: Exception) {}
@@ -152,9 +137,22 @@ class SmbDataSource(private val connections: SmbConnections) : BaseDataSource(/*
     override fun getUri(): Uri? = uri
 
     override fun close() {
-        if (opened) {
-            opened = false
-            transferEnded()
+        try {
+            file?.close()
+        } catch (e: Exception) {
+            throw IOException("SMB close failed: ${e.message}", e)
+        } finally {
+            file = null
+            target = null
+            uri = null
+            position = 0L
+            remaining = 0L
+            prefetchStart = -1L
+            prefetchLength = 0
+            if (opened) {
+                opened = false
+                transferEnded()
+            }
         }
     }
 }

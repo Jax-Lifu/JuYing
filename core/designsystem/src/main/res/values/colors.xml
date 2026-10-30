@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 与 multisource-v2 的中性深色、浅色焦点保持一致。 -->
-    <color name="jy_background">#101115</color>
-    <color name="jy_surface">#191B20</color>
-    <color name="jy_surface_variant">#303238</color>
-    <color name="jy_accent">#F5F4F1</color>
-    <color name="jy_on_surface">#F5F4F1</color>
-    <color name="jy_on_surface_secondary">#ADB3BF</color>
+    <!-- 暖色影院主题：琥珀色用于操作、选中和遥控器焦点。 -->
+    <color name="jy_background">#171411</color>
+    <color name="jy_surface">#24201B</color>
+    <color name="jy_surface_variant">#3C3126</color>
+    <color name="jy_accent">#F4BB68</color>
+    <color name="jy_on_surface">#FFF4E5</color>
+    <color name="jy_on_surface_secondary">#C7B8A5</color>
     <color name="jy_error">#FF453A</color>
 </resources>

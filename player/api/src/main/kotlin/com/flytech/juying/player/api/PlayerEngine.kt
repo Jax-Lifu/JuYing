@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 /** 播放内核底层状态模型，包含缓冲、宽高、播放中与错误状态。 */
 data class PlayerState(
     val isPlaying: Boolean = false,
+    /** Playback intent remains true while buffering or temporarily suppressed by audio focus. */
+    val playWhenReady: Boolean = false,
     val isBuffering: Boolean = false,
     val ended: Boolean = false,
     val videoWidth: Int = 0,

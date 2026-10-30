@@ -8,22 +8,55 @@ plugins {
 }
 
 val appDisplayName = "JuYing"
-val baseVersionName = "0.1.0"
+val baseVersionName = providers.gradleProperty("appVersion").orElse("0.0.2").get()
+require(baseVersionName.matches(Regex("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"))) {
+    "appVersion must be major.minor.patch (each part between 0 and 999)"
+}
+val versionParts = baseVersionName.split('.').map(String::toInt)
+val appVersionCode = versionParts[0] * 1_000_000 + versionParts[1] * 1_000 + versionParts[2]
+require(appVersionCode > 0) { "appVersion must be greater than 0.0.0" }
 val buildDate: String = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+val targetAbi = providers.gradleProperty("targetAbi").orNull
+require(targetAbi == null || targetAbi in listOf("arm64-v8a", "armeabi-v7a")) {
+    "targetAbi must be arm64-v8a or armeabi-v7a; omit it to include both"
+}
+val abiSuffix = "_${targetAbi ?: "universal"}"
+
+val missingReleaseSigning = listOf(
+    "JUYING_KEYSTORE_PATH", "JUYING_KEYSTORE_PASSWORD", "JUYING_KEY_ALIAS", "JUYING_KEY_PASSWORD",
+).filter { providers.environmentVariable(it).orNull.isNullOrBlank() }
+val checkReleaseSigning = tasks.register("checkReleaseSigning") {
+    val missing = missingReleaseSigning
+    doLast {
+        check(missing.isEmpty()) {
+            "Release signing is required. Missing environment variables: ${missing.joinToString()}"
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(checkReleaseSigning) }
 
 android {
     namespace = "com.flytech.juying"
 
     defaultConfig {
         applicationId = "com.flytech.juying"
-        versionCode = 1
+        versionCode = appVersionCode
         versionName = baseVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 只打主流电视/手机架构，减小体积
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        ndk { abiFilters += targetAbi?.let(::listOf) ?: listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     buildFeatures { viewBinding = false }
+
+    signingConfigs {
+        create("release") {
+            storeFile = providers.environmentVariable("JUYING_KEYSTORE_PATH").orNull?.let { file(it) }
+            storePassword = providers.environmentVariable("JUYING_KEYSTORE_PASSWORD").orNull
+            keyAlias = providers.environmentVariable("JUYING_KEY_ALIAS").orNull
+            keyPassword = providers.environmentVariable("JUYING_KEY_PASSWORD").orNull
+        }
+    }
 
     buildTypes {
         debug {
@@ -33,20 +66,19 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // 默认回退使用 debug 签名以便直接真机验证 Release R8 包；CI 可通过环境变量覆盖正式签名
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
     // 统一产物命名与版本号：
     // 1. versionName = "{debug|release}_{版本}_{日期}"（如 debug_0.1.0_20261024）
-    // 2. APK 文件名   = "JuYing_{debug|release}_{版本}_{日期}.apk"（如 JuYing_debug_0.1.0_20261024.apk）
+    // 2. APK 与 mapping 文件名带 universal / arm64-v8a / armeabi-v7a 后缀，避免不同架构互相覆盖。
     // 3. 编译完成后自动归档至根目录 dist/<子目录>/（可通过 -PdistMode=version|date|version_date 切换，默认 v{版本}_{日期}）
     applicationVariants.configureEach {
         val buildTypeName = buildType.name
         val fullVersionName = "${buildTypeName}_${baseVersionName}_${buildDate}"
-        val apkFileName = "${appDisplayName}_${fullVersionName}.apk"
+        val apkFileName = "${appDisplayName}_${fullVersionName}${abiSuffix}.apk"
         outputs.configureEach {
             if (this is ApkVariantOutputImpl) {
                 versionNameOverride = fullVersionName
@@ -65,16 +97,16 @@ android {
         val mappingSourceFile = layout.buildDirectory.file("outputs/mapping/$buildTypeName/mapping.txt").get().asFile
         val isReleaseVariant = (buildTypeName == "release")
         val targetApkFile = File(distDir, apkFileName)
-        val targetMappingFile = File(distDir, "${appDisplayName}_${fullVersionName}_mapping.txt")
+        val targetMappingFile = File(distDir, "${appDisplayName}_${fullVersionName}${abiSuffix}_mapping.txt")
 
         assembleProvider.configure {
             doLast {
+                check(apkSourceFile.isFile) { "Missing APK: $apkSourceFile" }
+                if (isReleaseVariant) check(mappingSourceFile.isFile) { "Missing R8 mapping: $mappingSourceFile" }
                 distDir.mkdirs()
-                if (apkSourceFile.exists()) {
-                    apkSourceFile.copyTo(targetApkFile, overwrite = true)
-                    println("==> [Dist] APK -> ${targetApkFile.absolutePath}")
-                }
-                if (isReleaseVariant && mappingSourceFile.exists()) {
+                apkSourceFile.copyTo(targetApkFile, overwrite = true)
+                println("==> [Dist] APK -> ${targetApkFile.absolutePath}")
+                if (isReleaseVariant) {
                     mappingSourceFile.copyTo(targetMappingFile, overwrite = true)
                     println("==> [Dist] R8 Mapping -> ${targetMappingFile.absolutePath}")
                 }

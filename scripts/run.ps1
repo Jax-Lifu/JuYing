@@ -9,7 +9,7 @@
     .\scripts\run.ps1 -Release               # 编译 Release，单设备直装 / 多设备交互选择
     .\scripts\run.ps1 -Release -All          # 编译 Release，安装并打开所有已连接设备
     .\scripts\run.ps1 -Device qytech6666     # 指定设备序列号安装
-    .\scripts\run.ps1 -SkipBuild -All        # 跳过编译，直接安装最新已编译的 APK 到全部设备
+    .\scripts\run.ps1 -SkipBuild -All        # 跳过编译，直接安装最新通用双架构 APK 到全部设备
 #>
 param(
     [switch]$Release,
@@ -129,7 +129,7 @@ if (-not $SkipBuild) {
         exit $LASTEXITCODE
     }
 } else {
-    Write-Host "`n[1/3] 已跳过编译 (-SkipBuild)，直接查找最新 APK..." -ForegroundColor Yellow
+    Write-Host "`n[1/3] 已跳过编译 (-SkipBuild)，直接查找最新通用双架构 APK..." -ForegroundColor Yellow
 }
 
 $apkDir = Join-Path $ProjectRoot "app\build\outputs\apk\$BuildType"
@@ -137,12 +137,12 @@ if (-not (Test-Path $apkDir)) {
     Write-Error "APK 输出目录不存在: $apkDir"
     exit 1
 }
-$apkFile = Get-ChildItem -Path $apkDir -Filter "*.apk" |
+$apkFile = Get-ChildItem -Path $apkDir -File -Filter "JuYing_${BuildType}_*_universal.apk" |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 
 if (-not $apkFile) {
-    Write-Error "未在 $apkDir 下找到任何 .apk 文件"
+    Write-Error "未在 $apkDir 下找到通用双架构 APK（*_universal.apk），请先不带 -SkipBuild 运行以编译通用包。"
     exit 1
 }
 
@@ -232,19 +232,15 @@ else {
 
 Write-Host "`n[3/3] 开始安装并打开应用 ($($apkFile.Name))..." -ForegroundColor Cyan
 $successCount = 0
+$installFailed = $false
 
 foreach ($dev in $targetDevices) {
     Write-Host "`n  --> 目标设备: $($dev.Serial) ($($dev.Model), $($dev.AndroidVer))" -ForegroundColor White
+    # Windows PowerShell turns native stderr into errors; inspect the install result before continuing.
+    $ErrorActionPreference = "Continue"
     $installOut = & $adb -s $dev.Serial install -r $apkFile.FullName 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0 -or $installOut -notmatch "Success") {
-        if ($installOut -match "INSTALL_FAILED_VERSION_DOWNGRADE|INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
-            Write-Host "      检测到旧版签名或版本号冲突，正在卸载旧版后重试..." -ForegroundColor Yellow
-            & $adb -s $dev.Serial uninstall $AppPackage 2>&1 | Out-Null
-            $installOut = & $adb -s $dev.Serial install -r $apkFile.FullName 2>&1 | Out-String
-        }
-    }
-
-    if ($installOut -match "Success") {
+    $ErrorActionPreference = "Stop"
+    if ($LASTEXITCODE -eq 0 -and $installOut -match "Success") {
         Write-Host "      [成功] APK 安装完成，正在启动 $MainActivity ..." -ForegroundColor Green
         & $adb -s $dev.Serial shell am force-stop $AppPackage 2>$null
         $startOut = & $adb -s $dev.Serial shell am start -W -n $MainActivity 2>&1 | Out-String
@@ -252,8 +248,11 @@ foreach ($dev in $targetDevices) {
         Write-Host "      [已启动] $MainActivity (冷启动耗时: $totalTime)" -ForegroundColor Green
         $successCount++
     } else {
+        $installFailed = $true
         Write-Host "      [失败] 安装到 $($dev.Serial) 失败:`n$installOut" -ForegroundColor Red
+        Write-Host "      已保留旧应用和数据，请检查签名、版本号或设备空间后重试。" -ForegroundColor Yellow
     }
 }
 
 Write-Host "`n全部任务执行完毕：成功安装并打开 $successCount / $($targetDevices.Count) 台设备。" -ForegroundColor Cyan
+if ($installFailed) { exit 1 }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 /** 搜索页面 UI 状态实体。 */
 data class SearchUiState(
@@ -41,6 +42,7 @@ class SearchViewModel @Inject constructor(private val vod: VodRepository) : View
     private var request: Job? = null
     private var suggestJob: Job? = null
     private var lastRequestPage = 1
+    private var pageStartIds = emptySet<Pair<String, String>>()
 
     fun queryChanged(text: String) {
         val q = text.trim()
@@ -48,7 +50,8 @@ class SearchViewModel @Inject constructor(private val vod: VodRepository) : View
         if (q.length >= 2) {
             suggestJob = viewModelScope.launch {
                 delay(200) // 防抖
-                val list = runCatching { vod.suggestions(q) }.getOrDefault(emptyList())
+                val list = try { vod.suggestions(q) }
+                    catch (error: Exception) { if (error is CancellationException) throw error else emptyList() }
                 state.update { it.copy(suggestions = list) }
             }
         } else {
@@ -60,33 +63,48 @@ class SearchViewModel @Inject constructor(private val vod: VodRepository) : View
         request?.cancel()
         suggestJob?.cancel()
         state.value = SearchUiState(keyword = keyword.trim(), suggestions = emptyList())
+        lastRequestPage = 0
         if (state.value.keyword.isNotEmpty()) loadPage(1)
     }
 
-    fun more() { if (!state.value.loading && state.value.hasMore) loadPage(state.value.page + 1) }
+    fun more() { if (!state.value.loading && !state.value.failed && state.value.hasMore) loadPage(state.value.page + 1) }
     fun retry() { if (!state.value.loading && state.value.keyword.isNotEmpty()) loadPage(lastRequestPage) }
 
     private fun loadPage(page: Int) {
         request?.cancel()
-        lastRequestPage = page
-        val before = state.value
         state.update { it.copy(loading = true, failed = false, targets = emptyMap(), suggestions = emptyList()) }
         request = viewModelScope.launch {
             try {
-                vod.searchUpdates(before.keyword, page).collect { update ->
-                    state.update { current -> when (update) {
-                        is SearchUpdate.Discovered -> current.copy(targets = current.targets + update.targets.associateWith { null })
-                        is SearchUpdate.Finished -> current.copy(
-                            targets = current.targets + (update.target to update.outcome),
-                            posters = (current.posters + update.items.map { VodPoster(it, update.target.label) })
-                                .distinctBy { it.item.sourceId to it.item.id })
-                    } }
+                var currentPage = page
+                while (true) {
+                    val before = state.value
+                    if (currentPage != lastRequestPage) pageStartIds = before.posters.map { it.item.sourceId to it.item.id }.toSet()
+                    lastRequestPage = currentPage
+                    var hasMore = false
+                    vod.searchUpdates(before.keyword, currentPage).collect { update ->
+                        if (update is SearchUpdate.Finished && update.outcome == SearchOutcome.SUCCESS) {
+                            hasMore = hasMore || (update.hasMore ?: update.items.any { (it.sourceId to it.id) !in pageStartIds })
+                        }
+                        state.update { current -> when (update) {
+                            is SearchUpdate.Discovered -> current.copy(targets = current.targets + update.targets.associateWith { null })
+                            is SearchUpdate.Finished -> current.copy(
+                                targets = current.targets + (update.target to update.outcome),
+                                posters = (current.posters + update.items.map { VodPoster(it, update.target.label) })
+                                    .distinctBy { it.item.sourceId to it.item.id })
+                        } }
+                    }
+                    val failed = state.value.targets.values.any { it == SearchOutcome.FAILED || it == SearchOutcome.TIMED_OUT }
+                    val succeeded = state.value.targets.values.any { it == SearchOutcome.SUCCESS }
+                    val continueEmptySearch = succeeded && !failed && hasMore && state.value.posters.isEmpty()
+                    state.update { it.copy(loading = continueEmptySearch, failed = failed,
+                        page = if (succeeded) currentPage else before.page,
+                        hasMore = hasMore) }
+                    if (!continueEmptySearch) break
+                    currentPage++
+                    state.update { it.copy(targets = emptyMap()) }
+                    // 缓存源也可能同步返回空页；让新查询有机会取消本次搜索。
+                    yield()
                 }
-                val failed = state.value.targets.values.any { it == SearchOutcome.FAILED || it == SearchOutcome.TIMED_OUT }
-                val succeeded = state.value.targets.values.any { it == SearchOutcome.SUCCESS }
-                state.update { it.copy(loading = false, failed = failed,
-                    page = if (succeeded) page else before.page,
-                    hasMore = succeeded) }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 state.update { it.copy(loading = false, failed = true) }
