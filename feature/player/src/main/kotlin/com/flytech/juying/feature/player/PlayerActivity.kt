@@ -59,6 +59,8 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
     private var sourceLabel: String? = null
     private var portrait = false
     private var dragging = false
+    private var consumedRemoteKey: Int? = null
+    private var playerDialog: androidx.appcompat.app.AlertDialog? = null
     private var epgKey: String? = null
     private var epgUpdatedAt = 0L
     private var epgJob: kotlinx.coroutines.Job? = null
@@ -73,7 +75,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideControls = Runnable {
-        if (!portrait && !binding.recovery.isVisible && supportFragmentManager.findFragmentByTag("source-picker") == null) {
+        if (!portrait && !binding.recovery.isVisible && playerDialog?.isShowing != true && hasWindowFocus() && supportFragmentManager.findFragmentByTag("source-picker") == null) {
             binding.controls.isVisible = false; binding.topControls.isVisible = false; binding.transport.isVisible = false
         }
     }
@@ -83,6 +85,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         override fun run() {
             val dur = vm.durationMs()
             binding.progress.isEnabled = dur > 0
+            binding.progress.isFocusable = binding.progress.isEnabled
             binding.progress.max = if (dur > 0) 1000 else 0
             if (!dragging) binding.progress.progress = if (dur > 0) (vm.positionMs() * 1000 / dur).toInt() else 0
             if (!vm.ui.value.isLive) {
@@ -111,7 +114,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         onBackPressedDispatcher.addCallback(this) {
             when {
                 fullscreenView != null -> exitWebFullscreen()
-                vm.ui.value.pendingTitle != null -> vm.cancelSwitch()
+                vm.ui.value.pendingTitle != null || vm.ui.value.switchError -> vm.cancelSwitch()
                 binding.controls.isVisible && !portrait -> { binding.controls.isVisible = false; binding.topControls.isVisible = false; binding.transport.isVisible = false }
                 else -> finish()
             }
@@ -129,7 +132,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.lines.setOnClickListener {
             val lines = vm.availableLines()
             MaterialAlertDialogBuilder(this).setTitle(D.string.ui_lines)
-                .setItems(lines.mapIndexed { index, line -> line.label.ifBlank { "${getString(D.string.ui_lines)} ${index + 1}" } }.toTypedArray()) { _, index -> vm.selectLine(index) }.show()
+                .setItems(lines.mapIndexed { index, line -> line.label.ifBlank { "${getString(D.string.ui_lines)} ${index + 1}" } }.toTypedArray()) { _, index -> vm.selectLine(index) }.showPlayerDialog()
         }
         binding.audio.setOnClickListener { showTracks(PlayerTrackType.AUDIO) }
         binding.subtitles.setOnClickListener { showTracks(PlayerTrackType.SUBTITLE) }
@@ -162,7 +165,11 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
             val restored = savedInstanceState?.getBundle(STATE_REQUEST)?.let { parseRequest(Intent().putExtras(it)) }
             (restored ?: parseRequest(intent))?.let(vm::start) ?: run { finish(); return }
         }
-        binding.root.post { layoutPlayer(); showControls() }
+        binding.root.post {
+            layoutPlayer()
+            showControls()
+            if (!portrait && !binding.recovery.isVisible && webView == null) binding.playPause.requestFocus()
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) { vm.ui.collect(::render) }
@@ -189,6 +196,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
     }
 
     override fun onStop() {
+        consumedRemoteKey = null
         vm.onBackground()
         vm.detachSurface()
         handler.removeCallbacksAndMessages(null)
@@ -206,6 +214,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.loading.isVisible = s.loading && s.error == null
         binding.progress.isVisible = !s.isLive && s.webPage == null
         binding.progress.isEnabled = vm.durationMs() > 0
+        binding.progress.isFocusable = binding.progress.isEnabled
         binding.playPause.isVisible = s.webPage == null
         binding.previous.isVisible = s.webPage == null
         binding.next.isVisible = s.webPage == null
@@ -224,6 +233,8 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         val episodeIndex = s.episodes.indexOfFirst { episodeRef != null && (it.ref == episodeRef || episodeRef in it.legacyRefs) }
         binding.previous.isEnabled = s.isLive || s.pendingTitle == null && episodeIndex > 0
         binding.next.isEnabled = s.isLive || s.pendingTitle == null && episodeIndex >= 0 && episodeIndex < s.episodes.lastIndex
+        binding.previous.isFocusable = binding.previous.isEnabled
+        binding.next.isFocusable = binding.next.isEnabled
         binding.previous.alpha = if (binding.previous.isEnabled) 1f else .35f
         binding.next.alpha = if (binding.next.isEnabled) 1f else .35f
         binding.previous.contentDescription = getString(if (s.isLive) D.string.ui_previous_channel else R.string.player_previous_episode)
@@ -246,8 +257,11 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         binding.cancelSwitch.setText(if (s.switchError) D.string.ui_keep_playing else D.string.ui_cancel_switch)
         binding.retry.isVisible = s.error != null || s.switchError
         binding.returnPrevious.isVisible = s.error != null && s.canReturn
-        if (binding.recovery.isVisible && !recoveryWasVisible) {
+        if (binding.recovery.isVisible && (!recoveryWasVisible || !binding.recovery.hasFocus())) {
             (if (s.pendingTitle != null || s.switchError) binding.cancelSwitch else if (s.canReturn) binding.returnPrevious else binding.retry).requestFocus()
+        } else if (recoveryWasVisible && !binding.recovery.isVisible) {
+            showControls()
+            binding.playPause.requestFocus()
         }
         val req = vm.currentRequest
         if (s.isLive && epgKey != "${req?.sourceId}:${req?.ref}") refreshProgramme()
@@ -330,28 +344,59 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         if (current != null) binding.programmeProgress.progress = ((now - current.startMs) * 1000 / (current.endMs - current.startMs)).toInt()
     }
     override fun playFromPicker(request: PlayRequest) { vm.start(request) }
+    private fun MaterialAlertDialogBuilder.showPlayerDialog() {
+        val trigger = binding.root.findFocus()
+        handler.removeCallbacks(hideControls)
+        val dialog = create()
+        playerDialog = dialog
+        dialog.setOnDismissListener {
+            if (playerDialog === dialog) playerDialog = null
+            if (!isFinishing && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                showControls()
+                if (!binding.recovery.isVisible && trigger?.isShown == true && trigger.isEnabled) trigger.requestFocus()
+            }
+        }
+        dialog.show()
+        if (dialog.listView == null) dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
+        dialog.listView?.let { list ->
+            list.post {
+                if (dialog.isShowing) {
+                    list.requestFocus()
+                    list.setSelection(list.checkedItemPosition.coerceAtLeast(0))
+                }
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!::binding.isInitialized) return
+        if (!hasFocus) handler.removeCallbacks(hideControls)
+        else if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && binding.controls.isVisible) showControls()
+    }
+
     private fun showTracks(type: PlayerTrackType) {
         val subtitles = type == PlayerTrackType.SUBTITLE
         val tracks = vm.tracks(type)
         val labels = (if (subtitles) listOf(getString(D.string.ui_subtitles_off)) else emptyList()) + tracks.map { it.label }
         val builder = MaterialAlertDialogBuilder(this).setTitle(if (subtitles) D.string.ui_subtitles else D.string.ui_audio)
-        if (labels.isEmpty()) builder.setMessage(D.string.ui_no_tracks).setPositiveButton(D.string.ui_close, null).show()
+        if (labels.isEmpty()) builder.setMessage(D.string.ui_no_tracks).setPositiveButton(D.string.ui_close, null).showPlayerDialog()
         else builder.setSingleChoiceItems(labels.toTypedArray(), tracks.indexOfFirst { it.selected } + if (subtitles) 1 else 0) { dialog, index ->
             vm.selectTrack(type, tracks.getOrNull(index - if (subtitles) 1 else 0)?.id); dialog.dismiss(); showControls()
-        }.setNegativeButton(D.string.ui_close, null).show()
+        }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
     }
     private fun showQuality() {
         val tracks = vm.tracks(PlayerTrackType.VIDEO)
         val dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.player_quality)
         if (tracks.size <= 1) {
             dialog.setMessage(tracks.singleOrNull()?.let { "${it.label}\n${getString(R.string.player_single_quality)}" }
-                ?: getString(R.string.player_quality_wait)).setPositiveButton(D.string.ui_close, null).show()
+                ?: getString(R.string.player_quality_wait)).setPositiveButton(D.string.ui_close, null).showPlayerDialog()
         } else {
             val labels = listOf(getString(R.string.player_auto_quality)) + tracks.map { it.label }
             dialog.setSingleChoiceItems(labels.toTypedArray(), tracks.indexOfFirst { it.selected } + 1) { picker, index ->
                 vm.selectTrack(PlayerTrackType.VIDEO, tracks.getOrNull(index - 1)?.id)
                 picker.dismiss(); showControls()
-            }.setNegativeButton(D.string.ui_close, null).show()
+            }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
         }
     }
     private fun showSpeed() {
@@ -360,7 +405,7 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
             .setSingleChoiceItems(speeds.map { "${it}×" }.toTypedArray(), speeds.indexOf(vm.playbackSpeed())) { dialog, index ->
                 vm.setPlaybackSpeed(speeds[index]); binding.speed.text = "${vm.playbackSpeed()}×"
                 dialog.dismiss(); showControls()
-            }.setNegativeButton(D.string.ui_close, null).show()
+            }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
     }
     private fun showChannels() {
         val req = vm.currentRequest ?: return
@@ -371,9 +416,9 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
                     .setSingleChoiceItems(channels.map { it.name }.toTypedArray(), channels.indexOfFirst { it.id == req.ref }) { dialog, index ->
                         val channel = channels[index]
                         vm.start(PlayRequest(PlayKind.LIVE, req.sourceId, channel.id, channel.name)); dialog.dismiss()
-                    }.setNegativeButton(D.string.ui_close, null).show()
+                    }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { MaterialAlertDialogBuilder(this@PlayerActivity).setMessage(D.string.ui_failed).setPositiveButton(D.string.ui_close, null).show() }
+            catch (_: Exception) { MaterialAlertDialogBuilder(this@PlayerActivity).setMessage(D.string.ui_failed).setPositiveButton(D.string.ui_close, null).showPlayerDialog() }
         }
     }
     private fun showEpisodes() {
@@ -381,14 +426,14 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         val picker = MaterialAlertDialogBuilder(this).setTitle(R.string.player_episodes)
         if (episodes.isEmpty()) {
             picker.setMessage(if (vm.ui.value.episodeError) D.string.ui_failed else D.string.content_loading)
-                .setPositiveButton(D.string.ui_retry) { _, _ -> vm.refreshEpisodes() }.setNegativeButton(D.string.ui_close, null).show()
+                .setPositiveButton(D.string.ui_retry) { _, _ -> vm.refreshEpisodes() }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
         } else {
             val ref = vm.currentRequest?.ref
             picker.setSingleChoiceItems(episodes.map { it.name }.toTypedArray(), episodes.indexOfFirst {
                 ref != null && (it.ref == ref || ref in it.legacyRefs)
             }) { dialog, index ->
                 vm.selectEpisode(index); dialog.dismiss(); showControls()
-            }.setNegativeButton(D.string.ui_close, null).show()
+            }.setNegativeButton(D.string.ui_close, null).showPlayerDialog()
         }
     }
     private fun formatTime(ms: Long): String {
@@ -396,30 +441,87 @@ class PlayerActivity : JuyingActivity(), SourcePickerHost {
         return if (seconds >= 3600) "%d:%02d:%02d".format(seconds / 3600, seconds / 60 % 60, seconds % 60)
             else "%02d:%02d".format(seconds / 60, seconds % 60)
     }
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_MENU) { navigator.showSourcePicker(this, vm.currentRequest?.sourceId); return true }
-        if (webView != null) return super.onKeyDown(keyCode, event)
-        val directional = keyCode in listOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN)
-        if (directional && (binding.controls.isVisible || binding.recovery.isVisible)) {
-            handler.removeCallbacks(hideControls)
-            return super.onKeyDown(keyCode, event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val key = event.keyCode
+        if (event.action == KeyEvent.ACTION_UP && consumedRemoteKey == key) {
+            consumedRemoteKey = null
+            return true
         }
-        val isLive = vm.ui.value.isLive
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { showControls(); binding.playPause.requestFocus(); return true }
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> vm.togglePlay()
-            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> if (isLive) vm.zap(-1) else vm.changeEpisode(-1)
-            KeyEvent.KEYCODE_MEDIA_NEXT -> if (isLive) vm.zap(1) else vm.changeEpisode(1)
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                showControls(); (if (isLive) binding.playPause else binding.progress).requestFocus(); return true
+        if (event.action != KeyEvent.ACTION_DOWN || !::binding.isInitialized) return super.dispatchKeyEvent(event)
+        if (event.repeatCount == 0) consumedRemoteKey = null
+        if (event.repeatCount > 0 && consumedRemoteKey == key &&
+            (key == KeyEvent.KEYCODE_DPAD_CENTER || key == KeyEvent.KEYCODE_ENTER)) return true
+        if (key == KeyEvent.KEYCODE_MENU) {
+            if (event.repeatCount == 0) {
+                showControls()
+                if (binding.root.findFocus() == null) binding.switchSource.requestFocus()
+                navigator.showSourcePicker(this, vm.currentRequest?.sourceId)
             }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> if (isLive) vm.zap(-1)
-            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> if (isLive) vm.zap(1)
-            else -> return super.onKeyDown(keyCode, event)
+            consumedRemoteKey = key
+            return true
         }
+        if (webView != null) return super.dispatchKeyEvent(event)
+        val isLive = vm.ui.value.isLive
+        val directional = key == KeyEvent.KEYCODE_DPAD_CENTER || key == KeyEvent.KEYCODE_ENTER ||
+            key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT ||
+            key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
+        if (directional && binding.recovery.isVisible) {
+            val direction = when (key) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+                KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+                KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+                KeyEvent.KEYCODE_DPAD_DOWN -> View.FOCUS_DOWN
+                else -> return super.dispatchKeyEvent(event)
+            }
+            val target = binding.recovery.findFocus()?.focusSearch(direction)
+            if (target != null && target.isEnabled && target in listOf(binding.retry, binding.cancelSwitch, binding.returnPrevious)) {
+                target.requestFocus(direction)
+            }
+            consumedRemoteKey = key
+            return true
+        }
+        if (directional && binding.controls.isVisible) {
+            showControls()
+            if (binding.progress.hasFocus() && (key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                seekFromRemote(if (key == KeyEvent.KEYCODE_DPAD_RIGHT) 10_000L else -10_000L)
+            } else return super.dispatchKeyEvent(event)
+        } else when (key) {
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                showControls()
+                binding.playPause.requestFocus()
+            }
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> if (event.repeatCount == 0) vm.togglePlay()
+            KeyEvent.KEYCODE_MEDIA_PLAY -> if (event.repeatCount == 0 && !vm.ui.value.playback.playWhenReady) vm.togglePlay()
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> if (event.repeatCount == 0 && vm.ui.value.playback.playWhenReady) vm.togglePlay()
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> if (event.repeatCount == 0) {
+                if (isLive) vm.zap(-1) else vm.changeEpisode(-1)
+            }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> if (event.repeatCount == 0) {
+                if (isLive) vm.zap(1) else vm.changeEpisode(1)
+            }
+            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ->
+                seekFromRemote(if (key == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) 10_000L else -10_000L)
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                showControls()
+                if (!isLive) seekFromRemote(if (key == KeyEvent.KEYCODE_DPAD_RIGHT) 10_000L else -10_000L)
+                (if (!isLive && binding.progress.isEnabled) binding.progress else binding.playPause).requestFocus()
+            }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> {
+                if (isLive) vm.zap(-1) else { showControls(); binding.playPause.requestFocus() }
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                if (isLive) vm.zap(1) else { showControls(); binding.playPause.requestFocus() }
+            }
+            else -> return super.dispatchKeyEvent(event)
+        }
+        // 唤出控件的按下和抬起必须一起消费，避免抬起落到刚获得焦点的按钮。
+        consumedRemoteKey = key
         showControls()
         return true
+    }
+
+    private fun seekFromRemote(deltaMs: Long) {
+        if (!vm.ui.value.isLive && vm.durationMs() > 0) vm.seekTo(vm.positionMs() + deltaMs)
     }
 
     @android.annotation.SuppressLint("SetJavaScriptEnabled")

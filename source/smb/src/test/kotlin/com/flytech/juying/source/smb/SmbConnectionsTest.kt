@@ -170,6 +170,94 @@ class SmbConnectionsTest {
         assertEquals(0, transfers.ended)
     }
 
+    @Test fun interruptedThumbnailDownloadRetriesAndOnlyCachesCompleteImages() = runBlocking {
+        for (extension in listOf("png", "webp")) {
+            val client = TestClient()
+            val connections = SmbConnections { client }
+            val target = SmbTarget("nas", "movies", "", "user", "correct")
+            val share = connections.share(target, useTargetCredentials = true) as TestShare
+            val context = RuntimeEnvironment.getApplication()
+            val uri = Uri.parse(target.toPlayUri("${UUID.randomUUID()}.$extension"))
+            val directory = java.io.File(context.cacheDir, "video_thumbs").apply { mkdirs() }
+            val hash = java.security.MessageDigest.getInstance("MD5").digest(uri.toString().toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            val legacy = java.io.File(directory, "smb_$hash.jpg").apply { writeBytes(byteArrayOf(1, 2)) }
+            val cache = java.io.File(directory, "smb_v2_$hash.jpg")
+            var inputClosed = false
+            share.imageInput = {
+                object : java.io.InputStream() {
+                    private var first = true
+                    override fun read(): Int = throw IOException("Connection interrupted")
+                    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+                        if (!first) throw IOException("Connection interrupted")
+                        first = false
+                        bytes[offset] = 7
+                        return 1
+                    }
+                    override fun close() { inputClosed = true }
+                }
+            }
+            fun fetcher() = SmbThumbnailFetcher(context, connections, uri, coil.request.Options(context))
+            try {
+                assertNull(fetcher().fetch())
+                assertTrue(inputClosed)
+                assertEquals(1, share.files.single().closeCalls)
+                assertFalse("A partial download must not become a cache hit", cache.exists())
+                assertTrue(directory.listFiles().orEmpty().none { it.name.startsWith(cache.name) })
+
+                val bytes = byteArrayOf(3, 4, 5, 6)
+                share.imageInput = { bytes.inputStream() }
+                val downloaded = fetcher().fetch() as coil.fetch.SourceResult
+                assertEquals(coil.decode.DataSource.NETWORK, downloaded.dataSource)
+                assertEquals("image/$extension", downloaded.mimeType)
+                downloaded.source.use { assertArrayEquals(bytes, it.source().readByteArray()) }
+                assertEquals(2, share.files.size)
+                assertEquals(1, share.files.last().closeCalls)
+
+                share.imageInput = { error("A valid cache must not reopen the NAS file") }
+                val cached = fetcher().fetch() as coil.fetch.SourceResult
+                assertEquals(coil.decode.DataSource.DISK, cached.dataSource)
+                assertEquals(downloaded.mimeType, cached.mimeType)
+                cached.source.use { assertArrayEquals(bytes, it.source().readByteArray()) }
+                assertEquals(2, share.files.size)
+            } finally {
+                legacy.delete()
+                cache.delete()
+                connections.invalidate(target)
+            }
+        }
+    }
+
+    @Test fun cancelledThumbnailDownloadClosesTheFileAndRemovesItsTemporaryCache() = runBlocking {
+        val client = TestClient()
+        val connections = SmbConnections { client }
+        val target = SmbTarget("nas", "movies", "", "user", "correct")
+        val share = connections.share(target, useTargetCredentials = true) as TestShare
+        val context = RuntimeEnvironment.getApplication()
+        val uri = Uri.parse(target.toPlayUri("${UUID.randomUUID()}.png"))
+        val directory = java.io.File(context.cacheDir, "video_thumbs").apply { mkdirs() }
+        val before = directory.listFiles().orEmpty().map { it.name }.toSet()
+        var inputClosed = false
+        share.imageInput = {
+            object : java.io.InputStream() {
+                override fun read(): Int = throw kotlinx.coroutines.CancellationException("Image request cancelled")
+                override fun close() { inputClosed = true }
+            }
+        }
+        try {
+            try {
+                SmbThumbnailFetcher(context, connections, uri, coil.request.Options(context)).fetch()
+                fail("Cancellation must propagate to the image request")
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                assertTrue(inputClosed)
+                assertEquals(1, share.files.single().closeCalls)
+                assertEquals(before, directory.listFiles().orEmpty().map { it.name }.toSet())
+            }
+        } finally {
+            connections.invalidate(target)
+        }
+    }
+
     private class TransferCounter : TransferListener {
         var ended = 0
         override fun onTransferInitializing(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
@@ -203,6 +291,7 @@ class SmbConnectionsTest {
         TreeConnect(1, SmbPath("nas", name), session, emptySet(), config, context(), null, emptySet(), emptySet()), PathResolver.LOCAL) {
         var closed = false
         var failFileInfo = false
+        var imageInput: (() -> java.io.InputStream)? = null
         val files = mutableListOf<TestSmbFile>()
         val listingStarted = CountDownLatch(1)
         var listingInterrupted = false
@@ -210,7 +299,10 @@ class SmbConnectionsTest {
         override fun close() { closed = true }
         override fun openFile(path: String, accessMask: Set<AccessMask>, attributes: Set<FileAttributes>?,
             shareAccess: Set<SMB2ShareAccess>, disposition: SMB2CreateDisposition, options: Set<SMB2CreateOptions>?) =
-            TestSmbFile(this, path, failFileInfo).also(files::add)
+            TestSmbFile(this, path, failFileInfo).also { file ->
+                file.imageInput = imageInput?.invoke()
+                files.add(file)
+            }
         override fun list(path: String): MutableList<FileIdBothDirectoryInformation> {
             listingStarted.countDown()
             try { CountDownLatch(1).await(5, TimeUnit.SECONDS) }

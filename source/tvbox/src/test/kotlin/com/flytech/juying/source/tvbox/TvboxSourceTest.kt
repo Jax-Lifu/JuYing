@@ -5,6 +5,7 @@ import com.flytech.juying.core.model.SourceType
 import com.flytech.juying.core.model.PlaybackRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -73,6 +74,54 @@ class TvboxSourceTest {
         val category = source.categories(config).single()
         assertEquals(1, source.list(config, category.id, 1).size)
         assertTrue(source.list(config, category.id, 2).isEmpty())
+    }
+
+    @Test fun searchRetainsPaginationAcrossEmptyRepeatedAndFinalPages() = runTest {
+        // Real dispatchers keep the Provider's timeout on wall time instead of the test's virtual clock.
+        withContext(Dispatchers.Default) {
+            for (type in listOf(1, 0)) {
+                for (timed in listOf(false, true)) {
+                    val source = source { request ->
+                        if (request.url.encodedPath == "/repos.json") {
+                            """{"sites":[{"key":"site","type":$type,"api":"https://cms.test/api"}]}"""
+                        } else {
+                            val page = requireNotNull(request.url.queryParameter("pg")).toInt()
+                            assertEquals("标题", request.url.queryParameter("wd"))
+                            assertEquals(if (type == 0) "videolist" else "detail", request.url.queryParameter("ac"))
+                            if (type == 0) {
+                                val item = if (page == 2) "" else "<video><id>same-id</id><name>测试影片</name></video>"
+                                """<rss><list page="$page" pagecount="4">$item</list></rss>"""
+                            } else {
+                                val items = if (page == 2) "" else """{"vod_id":"same-id","vod_name":"测试影片"}"""
+                                """{"page":$page,"total":4,"limit":1,"list":[$items]}"""
+                            }
+                        }
+                    }
+                    val pages = (1..4).map { page ->
+                        if (timed) requireNotNull(source.searchPageWithTimeout(config, "标题", page, "site", 30_000))
+                        else source.searchPage(config, "标题", page, "site")
+                    }
+                    assertEquals(listOf(true, true, true, false), pages.map { it.hasMore })
+                    assertTrue(pages[1].items.isEmpty())
+                    assertEquals(pages[0].items, pages[2].items)
+                    assertTrue(pages[3].items.isNotEmpty())
+                    val item = pages[0].items.single()
+                    assertEquals(config.id, item.sourceId)
+                    assertEquals(TvboxItemRef("site", "same-id").encode(), item.id)
+                }
+            }
+        }
+    }
+
+    @Test fun searchWithoutPaginationMetadataKeepsContinuationUnknown() = runTest {
+        val source = source { request ->
+            if (request.url.encodedPath == "/repos.json")
+                """{"sites":[{"key":"site","type":1,"api":"https://cms.test/api"}]}"""
+            else video
+        }
+        val page = source.searchPage(config, "标题", 1, "site")
+        assertEquals(null, page.hasMore)
+        assertEquals(1, page.items.size)
     }
 
     @Test fun reorderedEpisodeIsResolvedByNameAndDoesNotPlayAdjacentEpisode() = runTest {

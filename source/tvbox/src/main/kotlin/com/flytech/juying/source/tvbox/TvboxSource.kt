@@ -11,6 +11,7 @@ import com.flytech.juying.core.model.SubSource
 import com.flytech.juying.core.model.VodCategory
 import com.flytech.juying.core.model.VodDetail
 import com.flytech.juying.core.model.VodItem
+import com.flytech.juying.core.model.VodPage
 import com.flytech.juying.core.network.fetchText
 import com.flytech.juying.core.network.await
 import com.flytech.juying.source.api.LiveSource
@@ -148,26 +149,32 @@ class TvboxSource @Inject constructor(
         search(config, keyword, page, null)
 
     override suspend fun search(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): List<VodItem> =
-        search(config, keyword, page, subSourceId, null)
+        searchPage(config, keyword, page, subSourceId).items
 
-    override suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): com.flytech.juying.core.model.VodPage? =
+    override suspend fun searchPage(config: SourceConfig, keyword: String, page: Int, subSourceId: String?): VodPage =
+        searchPage(config, keyword, page, subSourceId, null)
+
+    override suspend fun searchPageWithTimeout(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long): VodPage? =
         try {
-            com.flytech.juying.core.model.VodPage(search(config, keyword, page, subSourceId, timeoutMillis))
+            searchPage(config, keyword, page, subSourceId, timeoutMillis)
         } catch (error: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
             null
         }
 
-    private suspend fun search(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long?): List<VodItem> {
+    private suspend fun searchPage(config: SourceConfig, keyword: String, page: Int, subSourceId: String?, timeoutMillis: Long?): VodPage {
         require(page >= FIRST_PAGE) { "页码必须大于零" }
-        if (keyword.isBlank()) return emptyList()
+        if (keyword.isBlank()) return VodPage(emptyList(), false)
         val loaded = if (timeoutMillis == null) loadConfig(config) else withTimeout(timeoutMillis) { loadConfig(config) }
         val site = loaded.site(config, subSourceId)
-        if (site.searchable == SEARCH_DISABLED) return emptyList()
+        if (site.searchable == SEARCH_DISABLED) return VodPage(emptyList(), false)
         val body = request(loaded, site, SpiderMethod.SEARCH, buildJsonArray {
             add(keyword.trim()); add(false); add(page.toString())
         }, timeoutMillis)
-        return items(body, config, site)
+        return withContext(defaultDispatcher) {
+            val response = TvboxJson.response(body)
+            VodPage(TvboxJson.videos(response).map { it.item(config.id, site.key) }, TvboxJson.hasMore(response, page))
+        }
     }
 
     override suspend fun resolve(config: SourceConfig, episodeRef: String): PlayItem {
@@ -210,9 +217,6 @@ class TvboxSource @Inject constructor(
             TvboxJson.videos(response).firstOrNull { it.id == id } ?: error("该内容已失效或没有详情")
         }
     }
-
-    private suspend fun items(body: String, config: SourceConfig, site: TvboxSite): List<VodItem> =
-        withContext(defaultDispatcher) { TvboxJson.videos(body).map { it.item(config.id, site.key) } }
 
     private suspend fun request(loaded: LoadedConfig, site: TvboxSite, method: SpiderMethod, args: JsonArray, timeoutMillis: Long? = null): String {
         val siteType = TvboxSiteType.fromCode(site.type)

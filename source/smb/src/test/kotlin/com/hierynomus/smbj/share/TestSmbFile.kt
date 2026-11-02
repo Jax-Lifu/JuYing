@@ -11,6 +11,9 @@ class TestSmbFile(share: DiskShare, path: String, private val failInfo: Boolean)
     File(SMB2FileId(), share, SmbPath("nas", "movies", path)) {
     var closeCalls = 0
     var failClose = false
+    var imageInput: java.io.InputStream? = null
+
+    override fun getInputStream(): java.io.InputStream = imageInput ?: super.getInputStream()
 
     override fun getFileInformation(): FileAllInformation {
         if (failInfo) throw IOException("Metadata unavailable")

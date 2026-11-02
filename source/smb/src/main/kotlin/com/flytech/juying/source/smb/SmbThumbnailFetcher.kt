@@ -16,11 +16,15 @@ import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2ShareAccess
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okio.Path.Companion.toOkioPath
 import timber.log.Timber
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.EnumSet
 import javax.inject.Inject
@@ -45,14 +49,15 @@ class SmbThumbnailFetcher(
 
         if (!isVideo && !isImage) return@withContext null
 
-        val cacheKey = "smb_" + md5(uri.toString() + if (isVideo) "@1s" else "")
+        // 新键不复用旧版直接写入、可能只包含部分字节的缓存。
+        val cacheKey = "smb_v2_" + md5(uri.toString() + if (isVideo) "@1s" else "")
         val cacheFile = File(File(context.cacheDir, "video_thumbs"), "$cacheKey.jpg")
 
         // 1. 命中本地缓存，直接以本地文件返回
         if (cacheFile.exists() && cacheFile.length() > 0) {
             return@withContext SourceResult(
                 source = ImageSource(file = cacheFile.toOkioPath()),
-                mimeType = "image/jpeg",
+                mimeType = if (isVideo) "image/jpeg" else mimeTypeFor(ext),
                 dataSource = DataSource.DISK,
             )
         }
@@ -78,18 +83,31 @@ class SmbThumbnailFetcher(
                     SMB2CreateDisposition.FILE_OPEN,
                     null,
                 )
-                file.inputStream.use { input ->
-                    cacheFile.outputStream().use { output ->
-                        input.copyTo(output)
+                try {
+                    writeCache(cacheFile) { temporary ->
+                        file.inputStream.use { input ->
+                            temporary.outputStream().use { output ->
+                                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                                while (true) {
+                                    ensureActive()
+                                    val count = input.read(buffer)
+                                    if (count < 0) break
+                                    output.write(buffer, 0, count)
+                                }
+                            }
+                        }
+                        ensureActive()
                     }
+                } finally {
+                    runCatching { file.close() }
                 }
-                runCatching { file.close() }
                 return@withContext SourceResult(
                     source = ImageSource(file = cacheFile.toOkioPath()),
                     mimeType = mimeTypeFor(ext),
                     dataSource = DataSource.NETWORK,
                 )
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Timber.w(e, "Failed to load SMB image for %s", uri)
                 return@withContext null
             }
@@ -123,8 +141,11 @@ class SmbThumbnailFetcher(
             } else bitmap
 
             try {
-                cacheFile.outputStream().use { out ->
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                writeCache(cacheFile) { temporary ->
+                    temporary.outputStream().use { out ->
+                        check(scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)) { "Thumbnail compression failed" }
+                    }
+                    ensureActive()
                 }
             } finally {
                 if (scaled !== bitmap) bitmap.recycle()
@@ -136,6 +157,18 @@ class SmbThumbnailFetcher(
                 mimeType = "image/jpeg",
                 dataSource = DataSource.NETWORK,
             )
+        }
+    }
+
+    // 同目录临时文件原子替换，读者只能命中完整缓存；失败保留原有文件。
+    private inline fun writeCache(destination: File, write: (File) -> Unit) {
+        val temporary = File.createTempFile(destination.name, ".tmp", destination.parentFile)
+        try {
+            write(temporary)
+            check(temporary.length() > 0) { "Empty thumbnail" }
+            Files.move(temporary.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            temporary.delete()
         }
     }
 

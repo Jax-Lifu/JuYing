@@ -1,7 +1,10 @@
 plugins {
     alias(libs.plugins.juying.android.feature)
 }
-android { namespace = "com.flytech.juying.feature.player" }
+android {
+    namespace = "com.flytech.juying.feature.player"
+    testOptions.unitTests.isIncludeAndroidResources = true
+}
 dependencies {
     implementation(project(":player:api"))
     testImplementation(project(":core:testing"))
