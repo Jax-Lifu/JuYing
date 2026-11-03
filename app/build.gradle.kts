@@ -1,6 +1,7 @@
 import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.juying.android.application)
@@ -22,14 +23,24 @@ require(targetAbi == null || targetAbi in listOf("arm64-v8a", "armeabi-v7a")) {
 }
 val abiSuffix = "_${targetAbi ?: "universal"}"
 
-val missingReleaseSigning = listOf(
+val localSigningProperties = Properties().apply {
+    val localPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
+    providers.fileContents(localPropertiesFile).asText.orNull?.reader()?.use { load(it) }
+}
+val releaseSigningValues = listOf(
     "JUYING_KEYSTORE_PATH", "JUYING_KEYSTORE_PASSWORD", "JUYING_KEY_ALIAS", "JUYING_KEY_PASSWORD",
-).filter { providers.environmentVariable(it).orNull.isNullOrBlank() }
+).associateWith { name ->
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty(name).orNull?.takeIf { it.isNotBlank() }
+        ?: localSigningProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+}
+val missingReleaseSigning = releaseSigningValues.filterValues { it == null }.keys.toList()
 val checkReleaseSigning = tasks.register("checkReleaseSigning") {
     val missing = missingReleaseSigning
     doLast {
         check(missing.isEmpty()) {
-            "Release signing is required. Missing environment variables: ${missing.joinToString()}"
+            "Release signing is required. Missing signing settings: ${missing.joinToString()}. " +
+                "Configure environment variables, Gradle properties, or root local.properties."
         }
     }
 }
@@ -51,10 +62,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = providers.environmentVariable("JUYING_KEYSTORE_PATH").orNull?.let { file(it) }
-            storePassword = providers.environmentVariable("JUYING_KEYSTORE_PASSWORD").orNull
-            keyAlias = providers.environmentVariable("JUYING_KEY_ALIAS").orNull
-            keyPassword = providers.environmentVariable("JUYING_KEY_PASSWORD").orNull
+            storeFile = releaseSigningValues["JUYING_KEYSTORE_PATH"]?.let { path ->
+                if (path.startsWith("~/")) {
+                    File(providers.systemProperty("user.home").get(), path.removePrefix("~/"))
+                } else {
+                    file(path)
+                }
+            }
+            storePassword = releaseSigningValues["JUYING_KEYSTORE_PASSWORD"]
+            keyAlias = releaseSigningValues["JUYING_KEY_ALIAS"]
+            keyPassword = releaseSigningValues["JUYING_KEY_PASSWORD"]
         }
     }
 

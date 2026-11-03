@@ -45,7 +45,7 @@ ensure_python311() {
 ensure_android_sdk() {
     # 1. 优先使用已定义且有效的环境变量
     if [[ -z "${ANDROID_HOME:-}" || ! -d "${ANDROID_HOME:-}" ]]; then
-        for candidate in "$HOME/Android/Sdk" "/root/Android/Sdk" "/opt/android-sdk" "/usr/lib/android-sdk"; do
+        for candidate in "$HOME/Library/Android/sdk" "$HOME/Android/Sdk" "/root/Android/Sdk" "/opt/android-sdk" "/usr/lib/android-sdk"; do
             if [[ -d "$candidate" ]]; then
                 export ANDROID_HOME="$candidate"
                 export ANDROID_SDK_ROOT="$candidate"
@@ -57,11 +57,10 @@ ensure_android_sdk() {
     # 2. 如果 local.properties 存在，检查其中的 sdk.dir 在当前系统上是否存在
     if [[ -f "$PROJECT_ROOT/local.properties" ]]; then
         local sdk_dir
-        sdk_dir=$(grep -E '^\s*sdk\.dir\s*=' "$PROJECT_ROOT/local.properties" | cut -d'=' -f2- | tr -d '\r' | sed 's/\\:/:/g; s/\\\\/\//g')
-        if [[ ! -d "$sdk_dir" ]]; then
-            # 当前系统的 local.properties 无效（例如由 Windows 生成的盘符路径），临时移开并在退出时恢复
-            mv "$PROJECT_ROOT/local.properties" "$PROJECT_ROOT/local.properties.win_tmp"
-            trap 'mv -f "$PROJECT_ROOT/local.properties.win_tmp" "$PROJECT_ROOT/local.properties" 2>/dev/null || true' EXIT
+        sdk_dir=$(sed -n 's/^[[:space:]]*sdk\.dir[[:space:]]*=[[:space:]]*//p' "$PROJECT_ROOT/local.properties" | tr -d '\r' | sed 's/\\:/:/g; s/\\\\/\//g')
+        if [[ -n "$sdk_dir" && ! -d "$sdk_dir" ]]; then
+            echo "local.properties 中的 sdk.dir 目录不存在，请修正该项，或删除该项以使用 ANDROID_HOME。" >&2
+            return 1
         fi
     fi
 }

@@ -18,7 +18,3 @@ dependencies {
     implementation(libs.media3.datasource.okhttp)
     testImplementation("org.robolectric:robolectric:4.16.1")
 }
-
-kotlin {
-    compilerOptions { optIn.add("androidx.media3.common.util.UnstableApi") }
-}

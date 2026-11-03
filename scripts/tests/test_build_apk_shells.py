@@ -22,11 +22,13 @@ ABIS = ("arm64-v8a", "armeabi-v7a", "universal")
 
 
 class BuildShellChecks:
-    def run_build(self, args=(), fail_abi=None):
+    def run_build(self, args=(), fail_abi=None, local_properties=None):
         directory = tempfile.TemporaryDirectory(prefix="juying shell-")
         self.addCleanup(directory.cleanup)
         root = Path(directory.name)
         (root / "scripts").mkdir()
+        if local_properties is not None:
+            (root / "local.properties").write_text(local_properties)
         script = root / "scripts" / self.script_name
         script.write_text((Path(__file__).resolve().parents[1] / self.script_name).read_text(encoding="utf-8"),
                           encoding="utf-8", newline="\n" if self.script_name.endswith(".sh") else "\r\n")
@@ -157,6 +159,32 @@ for variant in ("debug", "release"):
 @unittest.skipUnless(BASH, "Bash is unavailable")
 class BashBuildTest(BuildShellChecks, unittest.TestCase):
     script_name = "build_apk.sh"
+
+    def test_sdk_dir_accepts_property_whitespace_and_path_spaces(self):
+        sdk = tempfile.TemporaryDirectory(prefix="juying sdk ")
+        self.addCleanup(sdk.cleanup)
+        properties = f"  sdk.dir = \t{Path(sdk.name).as_posix()}\nJUYING_KEY_ALIAS=test-alias\n"
+        root, calls, result = self.run_build(("--debug", "--abi", "universal"),
+                                             local_properties=properties)
+        self.assert_ok(result)
+        self.assertEqual(1, len(calls))
+        self.assertEqual(properties, (root / "local.properties").read_text())
+
+    def test_signing_properties_without_sdk_dir_reach_gradle(self):
+        properties = "JUYING_KEY_ALIAS=test-alias\nJUYING_KEY_PASSWORD=test-password\n"
+        root, calls, result = self.run_build(("--release", "--abi", "universal"),
+                                             local_properties=properties)
+        self.assert_ok(result)
+        self.assertEqual(1, len(calls))
+        self.assertEqual(properties, (root / "local.properties").read_text())
+
+    def test_invalid_sdk_dir_reports_error_and_preserves_properties(self):
+        properties = "sdk.dir=/nonexistent-juying-test-sdk\nJUYING_KEY_ALIAS=test-alias\n"
+        root, calls, result = self.run_build(local_properties=properties)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(b"sdk.dir", result.stderr)
+        self.assertEqual([], calls)
+        self.assertEqual(properties, (root / "local.properties").read_text())
 
 
 @unittest.skipUnless(os.name == "nt", "Batch requires Windows")

@@ -1,4 +1,14 @@
 pluginManagement {
+    // 运行时依赖含 Kotlin 2.4 metadata，需要比 AGP 8.13 内置版本更新的 R8。
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+        }
+        dependencies {
+            classpath("com.android.tools:r8:9.1.57")
+        }
+    }
     includeBuild("build-logic")
     repositories {
         google()

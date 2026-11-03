@@ -41,7 +41,16 @@
 
 > **注意**：Windows 环境下若遇到 JDK Unix domain socket 路径长度限制，可将当前终端的 `TEMP`、`TMP` 设置为短路径后重试。
 
-Release 构建必须配置 `JUYING_KEYSTORE_PATH`、`JUYING_KEYSTORE_PASSWORD`、`JUYING_KEY_ALIAS`、`JUYING_KEY_PASSWORD` 环境变量；缺少时构建失败，不会改用 debug 签名。签名文件保存在仓库外，并持续使用同一密钥。GitHub 发布还需设置 `JUYING_KEYSTORE_BASE64` Secret 及上述三个密码/别名 Secret，工作流会临时还原并清理签名文件。
+Release 构建必须配置 `JUYING_KEYSTORE_PATH`、`JUYING_KEYSTORE_PASSWORD`、`JUYING_KEY_ALIAS`、`JUYING_KEY_PASSWORD`。每项依次读取环境变量、同名 Gradle properties（如 `~/.gradle/gradle.properties`）、项目根目录 `local.properties`，空白值会继续回退；缺少时构建失败，不会改用 debug 签名。可在已被 Git 忽略的 `local.properties` 中添加：
+
+```properties
+JUYING_KEYSTORE_PATH=~/.android/juying-release.jks
+JUYING_KEYSTORE_PASSWORD=your-store-password
+JUYING_KEY_ALIAS=your-key-alias
+JUYING_KEY_PASSWORD=your-key-password
+```
+
+签名路径支持 `~/`、绝对路径和相对 `app/` 目录的路径；Windows 路径建议使用 `/`。密码按原值读取，不会裁剪首尾空格。真实签名配置不要写入受版本控制的 `gradle.properties`。签名文件保存在仓库外，并持续使用同一密钥。GitHub 发布还需设置 `JUYING_KEYSTORE_BASE64` Secret 及上述三个密码/别名 Secret，工作流会临时还原并清理签名文件。
 
 版本默认是 `0.0.2`，可通过 `-PappVersion=主版本.次版本.补丁版本` 指定；每段为 0–999，`versionCode = 主版本 × 1000000 + 次版本 × 1000 + 补丁版本`，发新版必须提升版本号。标签发布使用标签中的版本（可带 `v` 前缀），保留现有 APK 命名格式。发布前运行单元测试和 Debug 构建；Windows 安装脚本回归使用 `python scripts/tests/test_run.py`。安装冲突会停止并保留旧应用数据，不会自动卸载。
 
