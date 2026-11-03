@@ -7,5 +7,6 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":source:api"))
+    implementation(libs.androidx.core.ktx)
     testImplementation("org.robolectric:robolectric:4.16.1")
 }

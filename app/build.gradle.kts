@@ -1,4 +1,4 @@
-import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+import com.android.build.api.variant.impl.VariantOutputImpl
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Properties
@@ -88,49 +88,6 @@ android {
         }
     }
 
-    // 统一产物命名与版本号：
-    // 1. versionName = "{debug|release}_{版本}_{日期}"（如 debug_0.1.0_20261024）
-    // 2. APK 与 mapping 文件名带 universal / arm64-v8a / armeabi-v7a 后缀，避免不同架构互相覆盖。
-    // 3. 编译完成后自动归档至根目录 dist/<子目录>/（可通过 -PdistMode=version|date|version_date 切换，默认 v{版本}_{日期}）
-    applicationVariants.configureEach {
-        val buildTypeName = buildType.name
-        val fullVersionName = "${buildTypeName}_${baseVersionName}_${buildDate}"
-        val apkFileName = "${appDisplayName}_${fullVersionName}${abiSuffix}.apk"
-        outputs.configureEach {
-            if (this is ApkVariantOutputImpl) {
-                versionNameOverride = fullVersionName
-                outputFileName = apkFileName
-            }
-        }
-
-        val distMode = providers.gradleProperty("distMode").orElse("version_date").get().lowercase()
-        val distSubFolder = when (distMode) {
-            "version" -> "v${baseVersionName}"
-            "date" -> buildDate
-            else -> "v${baseVersionName}_${buildDate}"
-        }
-        val distDir = rootProject.layout.projectDirectory.dir("dist/$distSubFolder").asFile
-        val apkSourceFile = layout.buildDirectory.file("outputs/apk/$buildTypeName/$apkFileName").get().asFile
-        val mappingSourceFile = layout.buildDirectory.file("outputs/mapping/$buildTypeName/mapping.txt").get().asFile
-        val isReleaseVariant = (buildTypeName == "release")
-        val targetApkFile = File(distDir, apkFileName)
-        val targetMappingFile = File(distDir, "${appDisplayName}_${fullVersionName}${abiSuffix}_mapping.txt")
-
-        assembleProvider.configure {
-            doLast {
-                check(apkSourceFile.isFile) { "Missing APK: $apkSourceFile" }
-                if (isReleaseVariant) check(mappingSourceFile.isFile) { "Missing R8 mapping: $mappingSourceFile" }
-                distDir.mkdirs()
-                apkSourceFile.copyTo(targetApkFile, overwrite = true)
-                println("==> [Dist] APK -> ${targetApkFile.absolutePath}")
-                if (isReleaseVariant) {
-                    mappingSourceFile.copyTo(targetMappingFile, overwrite = true)
-                    println("==> [Dist] R8 Mapping -> ${targetMappingFile.absolutePath}")
-                }
-            }
-        }
-    }
-
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
@@ -138,6 +95,47 @@ android {
 
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/DEPENDENCIES", "META-INF/INDEX.LIST")
+    }
+}
+
+// 统一产物命名与版本号：
+// 1. versionName = "{debug|release}_{版本}_{日期}"（如 debug_0.1.0_20261024）
+// 2. APK 与 mapping 文件名带 universal / arm64-v8a / armeabi-v7a 后缀，避免不同架构互相覆盖。
+// 3. 编译完成后自动归档至根目录 dist/<子目录>/（可通过 -PdistMode=version|date|version_date 切换，默认 v{版本}_{日期}）
+androidComponents.onVariants { variant ->
+    val buildTypeName = requireNotNull(variant.buildType)
+    val fullVersionName = "${buildTypeName}_${baseVersionName}_${buildDate}"
+    val apkFileName = "${appDisplayName}_${fullVersionName}${abiSuffix}.apk"
+    variant.outputs.forEach { output ->
+        output.versionName.set(fullVersionName)
+        (output as VariantOutputImpl).outputFileName.set(apkFileName)
+    }
+
+    val distMode = providers.gradleProperty("distMode").orElse("version_date").get().lowercase()
+    val distSubFolder = when (distMode) {
+        "version" -> "v${baseVersionName}"
+        "date" -> buildDate
+        else -> "v${baseVersionName}_${buildDate}"
+    }
+    val distDir = rootProject.layout.projectDirectory.dir("dist/$distSubFolder").asFile
+    val apkSourceFile = layout.buildDirectory.file("outputs/apk/$buildTypeName/$apkFileName").get().asFile
+    val mappingSourceFile = layout.buildDirectory.file("outputs/mapping/$buildTypeName/mapping.txt").get().asFile
+    val isReleaseVariant = (buildTypeName == "release")
+    val targetApkFile = File(distDir, apkFileName)
+    val targetMappingFile = File(distDir, "${appDisplayName}_${fullVersionName}${abiSuffix}_mapping.txt")
+
+    tasks.matching { it.name == "assemble${variant.name.replaceFirstChar(Char::uppercaseChar)}" }.configureEach {
+        doLast {
+            check(apkSourceFile.isFile) { "Missing APK: $apkSourceFile" }
+            if (isReleaseVariant) check(mappingSourceFile.isFile) { "Missing R8 mapping: $mappingSourceFile" }
+            distDir.mkdirs()
+            apkSourceFile.copyTo(targetApkFile, overwrite = true)
+            println("==> [Dist] APK -> ${targetApkFile.absolutePath}")
+            if (isReleaseVariant) {
+                mappingSourceFile.copyTo(targetMappingFile, overwrite = true)
+                println("==> [Dist] R8 Mapping -> ${targetMappingFile.absolutePath}")
+            }
+        }
     }
 }
 

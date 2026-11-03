@@ -1,9 +1,9 @@
 [versions]
-agp = "8.13.2"
+agp = "9.1.1"
 kotlin = "2.3.0"
 kotlinMetadata = "2.4.10"
 ksp = "2.3.12"
-hilt = "2.58"
+hilt = "2.59.2"
 coroutines = "1.10.2"
 serialization = "1.11.0"
 media3 = "1.11.1"
@@ -91,7 +91,6 @@ quickjs = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

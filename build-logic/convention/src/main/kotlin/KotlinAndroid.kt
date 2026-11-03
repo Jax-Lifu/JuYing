@@ -18,19 +18,13 @@ internal val Project.libs: VersionCatalog
 
 internal fun Project.lib(alias: String) = libs.findLibrary(alias).get()
 
-internal fun Project.configureKotlinAndroid(ext: CommonExtension<*, *, *, *, *, *>) {
+internal fun Project.configureKotlinAndroid(ext: CommonExtension) {
     ext.apply {
         compileSdk = COMPILE_SDK
         defaultConfig.minSdk = MIN_SDK
-        // Chaquopy 预编译库已去除调试符号，所有打包模块直接保留，避免重复 strip。
-        packaging.jniLibs.keepDebugSymbols.addAll(
-            listOf(
-                "libchaquopy_java.so", "libcrypto_chaquopy.so", "libcrypto_python.so",
-                "libpython3.11.so", "libpython3.so", "libsqlite3_chaquopy.so",
-                "libsqlite3_python.so", "libssl_chaquopy.so", "libssl_python.so",
-            ).map { "**/$it" },
-        )
-        compileOptions {
+        // 编译和打包使用同一 NDK，确保各模块都能找到对应的 llvm-strip。
+        ndkVersion = "28.2.13676358"
+        compileOptions.apply {
             sourceCompatibility = JavaVersion.VERSION_17
             targetCompatibility = JavaVersion.VERSION_17
         }
